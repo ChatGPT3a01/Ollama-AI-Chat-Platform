@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 寫作工作台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .writing-tools {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 { color: #333; margin-bottom: 10px; text-align: center; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 25px; }
+
+        .toolbar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+        }
+        .toolbar label { font-weight: bold; color: #333; }
+        select, button {
+            padding: 12px 20px;
+            font-size: 14px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+        button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .feature-btn {
+            padding: 15px 10px;
+            background: #f0f0ff;
+            color: #667eea;
+            border: 2px solid #e0e0ff;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .feature-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .feature-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .feature-btn .icon { font-size: 1.5em; display: block; margin-bottom: 5px; }
+
+        .content-area {
+            display: flex;
+            gap: 20px;
+        }
+        .panel { flex: 1; }
+        .panel h3 { margin-bottom: 10px; color: #555; }
+        textarea {
+            width: 100%;
+            height: 350px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 15px;
+            line-height: 1.8;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        textarea:focus { border-color: #667eea; }
+        #results {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 12px;
+            min-height: 350px;
+            white-space: pre-wrap;
+            line-height: 1.8;
+            border: 2px solid #e0e0e0;
+            overflow-y: auto;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 10px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .stat-item .number { font-size: 1.5em; font-weight: bold; color: #667eea; }
+        .stat-item .label { font-size: 0.85em; color: #666; }
+
+        .loading { color: #667eea; font-style: italic; }
+
+        @media (max-width: 768px) {
+            .content-area { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="writing-tools">
+        <h1>AI 寫作工作台</h1>
+        <p class="subtitle">讓 AI 幫你加速內容創作</p>
+
+        <div class="toolbar">
+            <label>模型：</label>
+            <select id="model-select">
+                <option value="llama3">Llama 3 (8B)</option>
+                <option value="mistral">Mistral (7B)</option>
+            </select>
+
+            <label>風格：</label>
+            <select id="tone-select">
+                <option value="formal">正式專業</option>
+                <option value="casual">輕鬆口語</option>
+                <option value="persuasive">說服銷售</option>
+                <option value="academic">學術嚴謹</option>
+                <option value="friendly">親切溫暖</option>
+                <option value="humorous">幽默風趣</option>
+            </select>
+
+            <button id="generate-btn" onclick="processText()">生成</button>
+            <button onclick="copyResult()">複製結果</button>
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-btn active" data-function="rewrite" onclick="selectFunction(this)">
+                <span class="icon">改</span>
+                改寫
+            </div>
+            <div class="feature-btn" data-function="tone" onclick="selectFunction(this)">
+                <span class="icon">調</span>
+                風格轉換
+            </div>
+            <div class="feature-btn" data-function="expand" onclick="selectFunction(this)">
+                <span class="icon">擴</span>
+                擴寫
+            </div>
+            <div class="feature-btn" data-function="summarize" onclick="selectFunction(this)">
+                <span class="icon">縮</span>
+                摘要
+            </div>
+            <div class="feature-btn" data-function="title" onclick="selectFunction(this)">
+                <span class="icon">標</span>
+                標題發想
+            </div>
+            <div class="feature-btn" data-function="seo" onclick="selectFunction(this)">
+                <span class="icon">SEO</span>
+                SEO 優化
+            </div>
+            <div class="feature-btn" data-function="slogan" onclick="selectFunction(this)">
+                <span class="icon">口</span>
+                標語口號
+            </div>
+            <div class="feature-btn" data-function="social" onclick="selectFunction(this)">
+                <span class="icon">社</span>
+                社群貼文
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="panel">
+                <h3>原始文字</h3>
+                <textarea id="original-text" placeholder="在這裡貼上要處理的文字..."></textarea>
+            </div>
+            <div class="panel">
+                <h3>生成結果</h3>
+                <div id="results">結果將顯示在這裡...</div>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="number" id="gen-count">0</div>
+                <div class="label">生成次數</div>
+            </div>
+            <div class="stat-item">
+                <div class="number" id="char-count">0</div>
+                <div class="label">處理字數</div>
+            </div>
+            <div class="stat-item">
+                <div class="number" id="output-count">0</div>
+                <div class="label">產出字數</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const OLLAMA_API = 'http://localhost:11434/api/generate';
+    let currentFunction = 'rewrite';
+    let genCount = 0;
+    let charCount = 0;
+    let outputCount = 0;
+
+    function selectFunction(element) {
+        document.querySelectorAll('.feature-btn').forEach(btn => btn.classList.remove('active'));
+        element.classList.add('active');
+        currentFunction = element.dataset.function;
+    }
+
+    async function processText() {
+        const tone = document.getElementById('tone-select').value;
+        const text = document.getElementById('original-text').value;
+        const resultsDiv = document.getElementById('results');
+        const btn = document.getElementById('generate-btn');
+        const model = document.getElementById('model-select').value;
+
+        if (!text.trim()) {
+            resultsDiv.innerHTML = '請先輸入要處理的文字！';
+            return;
+        }
+
+        resultsDiv.innerHTML = '<span class="loading">AI 正在處理中，請稍候...</span>';
+        btn.disabled = true;
+
+        const toneNames = {
+            formal: '正式專業', casual: '輕鬆口語', persuasive: '說服銷售',
+            academic: '學術嚴謹', friendly: '親切溫暖', humorous: '幽默風趣'
+        };
+
+        let prompt = '';
+        switch(currentFunction) {
+            case 'rewrite':
+                prompt = `請將以下文字改寫成 5 個不同版本，保持原意但用不同表達方式。請用「版本 1：」「版本 2：」等格式標示：\n\n${text}`;
+                break;
+            case 'tone':
+                prompt = `請將以下文字轉換成「${toneNames[tone]}」風格，提供 3 個版本：\n\n${text}`;
+                break;
+            case 'expand':
+                prompt = `請將以下文字擴寫，增加更多細節與描述（目標 2-3 倍長度），保持原有主題和風格：\n\n${text}`;
+                break;
+            case 'summarize':
+                prompt = `請將以下文字濃縮摘要成 100 字以內，保留核心重點：\n\n${text}`;
+                break;
+            case 'title':
+                prompt = `請為以下內容發想 10 個吸引人的標題，用數字編號列出。標題要吸睛、有創意：\n\n${text}`;
+                break;
+            case 'seo':
+                prompt = `請分析以下文字，並提供 SEO 優化建議，包含：\n1. 建議的關鍵字（5-10個）\n2. Meta Description（150字內）\n3. 標題優化建議\n4. 內容改善建議\n\n原文：\n${text}`;
+                break;
+            case 'slogan':
+                prompt = `請根據以下內容，發想 10 個朗朗上口的標語或口號。要求簡短有力、易於記憶：\n\n${text}`;
+                break;
+            case 'social':
+                prompt = `請根據以下內容，生成適合社群媒體的貼文版本：\n1. Facebook 版本（較長，可加表情符號）\n2. Instagram 版本（配上適當的 hashtag）\n3. Twitter/X 版本（簡潔有力，280字內）\n4. LinkedIn 版本（專業風格）\n\n原始內容：\n${text}`;
+                break;
+        }
+
+        try {
+            const response = await fetch(OLLAMA_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: model,
+                    prompt: prompt,
+                    stream: false
+                })
+            });
+
+            const data = await response.json();
+            resultsDiv.innerHTML = data.response.replace(/\n/g, '<br>');
+
+            // 更新統計
+            genCount++;
+            charCount += text.length;
+            outputCount += data.response.length;
+            updateStats();
+
+        } catch (err) {
+            resultsDiv.innerHTML = '錯誤：' + err.message + '<br>請確認 Ollama 已啟動。';
+        }
+
+        btn.disabled = false;
+    }
+
+    function updateStats() {
+        document.getElementById('gen-count').textContent = genCount;
+        document.getElementById('char-count').textContent = charCount;
+        document.getElementById('output-count').textContent = outputCount;
+    }
+
+    function copyResult() {
+        const text = document.getElementById('results').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert('已複製到剪貼簿！');
+        });
+    }
+    </script>
+</body>
+</html>

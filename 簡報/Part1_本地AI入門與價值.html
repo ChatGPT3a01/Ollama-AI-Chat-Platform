@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Part 1 - 本地 AI 入門與價值</title>
+    <style>
+        /* 基礎設定 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            color: #333;
+        }
+
+        /* === 導航列 === */
+        .nav-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            z-index: 10000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            pointer-events: auto !important;
+        }
+
+        .nav-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .nav-buttons { display: flex; gap: 12px; }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            pointer-events: auto !important;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* 確保連結無底線 */
+        a.nav-btn, a.nav-btn:hover, a.nav-btn:visited, a.nav-btn:active {
+            text-decoration: none !important;
+        }
+
+        /* === 導航箭頭 === */
+        .nav-arrow {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.25);
+            color: white;
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.4);
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 9000;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto !important;
+        }
+        .nav-arrow:hover {
+            background: rgba(255,255,255,0.5);
+            transform: translateY(-50%) scale(1.1);
+        }
+        .prev-arrow { left: 30px; }
+        .next-arrow { right: 30px; }
+        .nav-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* === 投影片容器 === */
+        .slide-container {
+            width: 100%;
+            height: 100vh;
+            padding-top: 60px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .slide {
+            position: absolute;
+            top: 60px; left: 0;
+            width: 100%;
+            height: calc(100vh - 60px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: 10;
+        }
+
+        .slide.active {
+            display: flex;
+            opacity: 1;
+            z-index: 20;
+        }
+
+        /* === 內容卡片 === */
+        .content-card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            padding: 50px 60px;
+            max-width: 1400px;
+            width: 95%;
+            max-height: 88vh;
+            overflow-y: auto;
+            position: relative;
+            pointer-events: auto;
+        }
+
+        /* 通用樣式 */
+        h1 { color: #667eea; font-size: 52px; margin-bottom: 24px; text-align: center; }
+        h2 { color: #764ba2; font-size: 36px; margin-bottom: 30px; border-bottom: 3px solid #667eea; padding-bottom: 12px; }
+        h3 { color: #667eea; font-size: 24px; margin: 25px 0 15px 0; }
+        p, li { font-size: 20px; line-height: 1.8; color: #444; margin-bottom: 15px; }
+        ul, ol { margin-left: 30px; }
+        code { background: #f0f2f5; padding: 3px 8px; border-radius: 6px; font-family: monospace; color: #d63384; font-weight: 600; font-size: 0.95em; }
+        pre { background: #282c34; color: #abb2bf; padding: 25px; border-radius: 12px; overflow-x: auto; margin: 25px 0; font-size: 18px; line-height: 1.6; font-family: monospace; }
+
+        .box { padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 6px solid; font-size: 20px; }
+        .info { background: #e3f2fd; border-color: #2196f3; color: #0d47a1; }
+        .warning { background: #fff3cd; border-color: #ffc107; color: #856404; }
+        .success { background: #d4edda; border-color: #28a745; color: #155724; }
+        .danger { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+        .highlight { background: linear-gradient(120deg, #667eea 0%, #764ba2 100%); padding: 4px 12px; border-radius: 6px; font-weight: bold; color: white; }
+
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-top: 30px; }
+        .concept-card { background: #f8f9fa; padding: 25px; border-radius: 15px; border: 1px solid #e9ecef; transition: transform 0.3s, border-color 0.3s; }
+        .concept-card:hover { transform: translateY(-8px); border-color: #667eea; }
+        .concept-card h3 { margin-top: 0; }
+
+        .compare-table { width: 100%; border-collapse: collapse; margin: 25px 0; font-size: 18px; }
+        .compare-table th, .compare-table td { padding: 15px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+        .compare-table th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .compare-table tr:hover { background: #f5f5f5; }
+
+        .icon-large { font-size: 48px; display: block; margin-bottom: 15px; }
+
+        .indicators { position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 4000; padding: 10px 25px; background: rgba(0,0,0,0.3); border-radius: 30px; backdrop-filter: blur(5px); }
+        .dot { width: 12px; height: 12px; background: rgba(255,255,255,0.4); border-radius: 50%; cursor: pointer; transition: all 0.3s; }
+        .dot.active { background: #fff; transform: scale(1.3); }
+        .dot:hover { background: rgba(255,255,255,0.8); }
+
+        .slide-number { position: fixed; bottom: 25px; right: 30px; color: rgba(255,255,255,0.7); font-size: 16px; z-index: 4000; }
+
+        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+        @media (max-width: 900px) {
+            .two-column { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 導航列 -->
+    <div class="nav-bar">
+        <div class="nav-title">Part 1 - 本地 AI 入門與價值</div>
+        <div class="nav-buttons">
+            <button class="nav-btn" onclick="goToSlide(0)">🏠 首頁</button>
+            <button class="nav-btn" onclick="toggleFullscreen()">🖥️ 全螢幕</button>
+            <a href="https://www.facebook.com/?locale=zh_TW" target="_blank" class="nav-btn">📘 FB</a>
+            <a href="https://www.youtube.com/@Liang-yt02" target="_blank" class="nav-btn">🎥 YT</a>
+        </div>
+    </div>
+
+    <!-- 投影片內容 -->
+    <div class="slide-container">
+
+        <!-- Slide 1: 封面 -->
+        <div class="slide active">
+            <div class="content-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <p style="color: #667eea; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 10px; font-size: 18px;">Chapter 10</p>
+                <h1 style="font-size: 58px; margin-bottom: 20px;">本地 AI 模型與對話平台</h1>
+                <h2 style="border: none; font-weight: normal; font-size: 28px; color: #666; max-width: 900px;">
+                    Part 1：為什麼需要本地 AI？<br>認識 Ollama + Llama 3 的強大組合
+                </h2>
+                <div style="margin-top: 40px; display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+                    <span class="highlight">完全免費</span>
+                    <span class="highlight">絕對隱私</span>
+                    <span class="highlight">離線可用</span>
+                    <span class="highlight">無限制使用</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: 學習目標 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>本單元學習目標</h2>
+                <p>完成本單元後，你將能夠：</p>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <span class="icon-large">💡</span>
+                        <h3>理解本地 AI 優勢</h3>
+                        <p>了解為什麼企業和個人需要本地 AI，以及與雲端 AI 的差異。</p>
+                    </div>
+                    <div class="concept-card">
+                        <span class="icon-large">🔧</span>
+                        <h3>認識 Ollama 工具</h3>
+                        <p>了解 Ollama 是什麼，以及它如何讓本地 AI 變得簡單易用。</p>
+                    </div>
+                    <div class="concept-card">
+                        <span class="icon-large">🦙</span>
+                        <h3>認識主流模型</h3>
+                        <p>了解 Llama 3、Mistral、Gemma 等開源模型的特色與適用場景。</p>
+                    </div>
+                    <div class="concept-card">
+                        <span class="icon-large">💼</span>
+                        <h3>掌握應用情境</h3>
+                        <p>了解本地 AI 在企業、教育、個人領域的 10 大應用場景。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: 問題引入 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>你是否遇過這些問題？</h2>
+                <div class="two-column">
+                    <div>
+                        <div class="box danger">
+                            <h3>💸 費用高昂</h3>
+                            <p>使用 ChatGPT API 每月帳單好幾千元，大量使用更是燒錢...</p>
+                        </div>
+                        <div class="box danger">
+                            <h3>🔒 隱私疑慮</h3>
+                            <p>公司機密文件、客戶資料不敢讓雲端 AI 處理...</p>
+                        </div>
+                        <div class="box danger">
+                            <h3>📶 需要網路</h3>
+                            <p>沒有網路就完全無法使用 AI 服務...</p>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="box danger">
+                            <h3>⏱️ 速率限制</h3>
+                            <p>API 有配額限制，超過就要等待或加錢...</p>
+                        </div>
+                        <div class="box danger">
+                            <h3>🚫 內容審查</h3>
+                            <p>某些內容被平台審查或拒絕回應...</p>
+                        </div>
+                        <div class="box success" style="margin-top: 30px;">
+                            <h3>✨ 解決方案</h3>
+                            <p><strong>本地 AI 模型</strong>可以完美解決以上所有問題！</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: 雲端 vs 本地 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>雲端 AI vs 本地 AI</h2>
+                <table class="compare-table">
+                    <tr>
+                        <th style="width: 25%;">比較項目</th>
+                        <th style="width: 37%;">雲端 AI（OpenAI/Gemini）</th>
+                        <th style="width: 37%;">本地 AI（Ollama）</th>
+                    </tr>
+                    <tr>
+                        <td><strong>費用</strong></td>
+                        <td>按使用量計費 💸</td>
+                        <td style="color: #28a745;"><strong>完全免費</strong> ✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>隱私</strong></td>
+                        <td>資料傳送到雲端 ⚠️</td>
+                        <td style="color: #28a745;"><strong>100% 本機處理</strong> ✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>網路需求</strong></td>
+                        <td>必須有網路連線</td>
+                        <td style="color: #28a745;"><strong>離線可用</strong> ✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>使用限制</strong></td>
+                        <td>有 API 配額、速率限制</td>
+                        <td style="color: #28a745;"><strong>無限制</strong> ✅</td>
+                    </tr>
+                    <tr>
+                        <td><strong>回應品質</strong></td>
+                        <td style="color: #28a745;"><strong>最頂尖</strong> ✅</td>
+                        <td>中等至良好</td>
+                    </tr>
+                    <tr>
+                        <td><strong>客製化</strong></td>
+                        <td>有限的參數調整</td>
+                        <td style="color: #28a745;"><strong>完全掌控</strong> ✅</td>
+                    </tr>
+                </table>
+                <div class="box info">
+                    <strong>結論：</strong>本地 AI 與雲端 AI 各有優勢，最佳策略是<strong>混合使用</strong>——日常大量使用本地 AI，頂尖需求才用雲端 AI。
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: 什麼是 Ollama -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>什麼是 Ollama？</h2>
+                <div class="two-column">
+                    <div>
+                        <p><strong>Ollama</strong> 是一個讓你能在本地電腦運行大型語言模型（LLM）的開源工具。</p>
+                        <p>可以把它想像成：<span class="highlight">在自己電腦上安裝的「離線版 ChatGPT」</span></p>
+
+                        <h3>Ollama 的特色</h3>
+                        <ul>
+                            <li>一鍵安裝，簡單易用</li>
+                            <li>支援 Windows / macOS / Linux</li>
+                            <li>內建圖形介面（GUI）</li>
+                            <li>提供 REST API 供程式串接</li>
+                            <li>模型管理方便（下載、更新、刪除）</li>
+                        </ul>
+                    </div>
+                    <div style="display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                        <div style="font-size: 120px; margin-bottom: 20px;">🦙</div>
+                        <p style="text-align: center; font-size: 24px; color: #667eea;"><strong>ollama.com</strong></p>
+                        <div class="box success" style="margin-top: 20px;">
+                            <p style="margin: 0; text-align: center;">下載後 5 分鐘內<br>即可開始對話！</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: 支援的模型 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>Ollama 支援的主流模型</h2>
+                <div class="concept-grid">
+                    <div class="concept-card" style="border-left: 4px solid #667eea;">
+                        <h3>🦙 Llama 3（Meta）</h3>
+                        <p><strong>推薦首選！</strong></p>
+                        <ul>
+                            <li>8B / 70B 參數版本</li>
+                            <li>對話品質接近 GPT-3.5</li>
+                            <li>程式碼能力強</li>
+                            <li>檔案大小：4.7GB（8B）</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card" style="border-left: 4px solid #764ba2;">
+                        <h3>🌪️ Mistral（Mistral AI）</h3>
+                        <p><strong>輕量快速！</strong></p>
+                        <ul>
+                            <li>7B 參數</li>
+                            <li>推理能力強</li>
+                            <li>回應速度快</li>
+                            <li>檔案大小：4.1GB</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card" style="border-left: 4px solid #28a745;">
+                        <h3>💎 Gemma（Google）</h3>
+                        <p><strong>超輕量！</strong></p>
+                        <ul>
+                            <li>2B / 7B 參數</li>
+                            <li>適合低配置電腦</li>
+                            <li>安全過濾完善</li>
+                            <li>檔案大小：1.6GB（2B）</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card" style="border-left: 4px solid #ffc107;">
+                        <h3>🔬 Phi（Microsoft）</h3>
+                        <p><strong>小而精！</strong></p>
+                        <ul>
+                            <li>輕量化模型</li>
+                            <li>適合教育用途</li>
+                            <li>低資源消耗</li>
+                            <li>快速回應</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: 硬體需求 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>我的電腦跑得動嗎？</h2>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <h3 style="color: #ffc107;">🟡 入門配置</h3>
+                        <ul>
+                            <li>RAM：8GB</li>
+                            <li>CPU：Intel i5 / AMD Ryzen 5</li>
+                            <li>硬碟：20GB 可用空間</li>
+                            <li>GPU：無（僅用 CPU）</li>
+                        </ul>
+                        <div class="box warning" style="margin-top: 15px; padding: 15px;">
+                            可運行：Mistral 7B、Gemma 2B<br>
+                            回應時間：5-10 秒
+                        </div>
+                    </div>
+                    <div class="concept-card">
+                        <h3 style="color: #28a745;">🟢 推薦配置</h3>
+                        <ul>
+                            <li>RAM：16GB</li>
+                            <li>CPU：Intel i7 / AMD Ryzen 7</li>
+                            <li>硬碟：50GB SSD</li>
+                            <li>GPU：RTX 3060（選配）</li>
+                        </ul>
+                        <div class="box success" style="margin-top: 15px; padding: 15px;">
+                            可運行：Llama 3 8B<br>
+                            回應時間：2-5 秒
+                        </div>
+                    </div>
+                    <div class="concept-card">
+                        <h3 style="color: #667eea;">🔵 高階配置</h3>
+                        <ul>
+                            <li>RAM：32GB+</li>
+                            <li>CPU：Intel i9 / AMD Ryzen 9</li>
+                            <li>硬碟：100GB NVMe</li>
+                            <li>GPU：RTX 4070+</li>
+                        </ul>
+                        <div class="box info" style="margin-top: 15px; padding: 15px;">
+                            可運行：Llama 3 70B<br>
+                            回應時間：1-3 秒
+                        </div>
+                    </div>
+                </div>
+                <p style="text-align: center; margin-top: 20px; color: #666;">💡 一般家用電腦（16GB RAM）即可順暢使用 Llama 3 8B！</p>
+            </div>
+        </div>
+
+        <!-- Slide 8: 應用情境總覽 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>本地 AI 的 10 大應用情境</h2>
+                <div class="concept-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                    <div class="concept-card" style="text-align: center; padding: 20px;">
+                        <span style="font-size: 36px;">🏢</span>
+                        <h3 style="font-size: 18px;">內部知識庫</h3>
+                    </div>
+                    <div class="concept-card" style="text-align: center; padding: 20px;">
+                        <span style="font-size: 36px;">📄</span>
+                        <h3 style="font-size: 18px;">客戶資料分析</h3>
+                    </div>
+                    <div class="concept-card" style="text-align: center; padding: 20px;">
+                        <span style="font-size: 36px;">🚢</span>
+                        <h3 style="font-size: 18px;">離線環境應用</h3>
+                    </div>
+                    <div class="concept-card" style="text-align: center; padding: 20px;">
+                        <span style="font-size: 36px;">👨‍🎓</span>
+                        <h3 style="font-size: 18px;">AI 家教系統</h3>
+                    </div>
+                    <div class="concept-card" style="text-align: center; padding: 20px;">
+                        <span style="font-size: 36px;">💻</span>
+                        <h3 style="font-size: 18px;">程式學習助教</h3>
+                    </div>
+                    <div class="concept-card" style="text-align: center; padding: 20px;">
+                        <span style="font-size: 36px;">✍️</span>
+                        <h3 style="font-size: 18px;">創意寫作輔助</h3>
+                    </div>
+                    <div class="concept-card" style="text-align: center; padding: 20px;">
+                        <span style="font-size: 36px;">🌍</span>
+                        <h3 style="font-size: 18px;">語言學習助手</h3>
+                    </div>
+                    <div class="concept-card" style="text-align: center; padding: 20px;">
+                        <span style="font-size: 36px;">🔍</span>
+                        <h3 style="font-size: 18px;">程式碼審查</h3>
+                    </div>
+                    <div class="concept-card" style="text-align: center; padding: 20px;">
+                        <span style="font-size: 36px;">🤫</span>
+                        <h3 style="font-size: 18px;">敏感議題諮詢</h3>
+                    </div>
+                    <div class="concept-card" style="text-align: center; padding: 20px;">
+                        <span style="font-size: 36px;">🧪</span>
+                        <h3 style="font-size: 18px;">AI 研究實驗</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: 企業應用 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>企業應用場景</h2>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <span class="icon-large">🏢</span>
+                        <h3>內部知識庫問答</h3>
+                        <p>將公司內部文件、SOP、技術手冊建立成 AI 知識庫。</p>
+                        <ul>
+                            <li>員工隨時查詢公司規定</li>
+                            <li>新人快速上手</li>
+                            <li><strong>資料不外流</strong></li>
+                        </ul>
+                        <div class="box success" style="padding: 15px; margin-top: 15px;">
+                            案例：製造業將 20 年維修手冊 AI 化，故障排除時間減少 70%
+                        </div>
+                    </div>
+                    <div class="concept-card">
+                        <span class="icon-large">📄</span>
+                        <h3>客戶資料分析</h3>
+                        <p>律師事務所、醫療機構、會計師處理敏感資料。</p>
+                        <ul>
+                            <li>合約審查分析</li>
+                            <li>病歷摘要生成</li>
+                            <li><strong>符合 GDPR、個資法</strong></li>
+                        </ul>
+                        <div class="box success" style="padding: 15px; margin-top: 15px;">
+                            案例：律師用本地 AI 分析 200 頁合約，找出 15 個風險條款
+                        </div>
+                    </div>
+                    <div class="concept-card">
+                        <span class="icon-large">🚢</span>
+                        <h3>離線環境應用</h3>
+                        <p>軍事基地、研究設施、海上平台等無網路環境。</p>
+                        <ul>
+                            <li>技術支援文件查詢</li>
+                            <li>報告撰寫輔助</li>
+                            <li><strong>完全離線運作</strong></li>
+                        </ul>
+                        <div class="box success" style="padding: 15px; margin-top: 15px;">
+                            案例：海上鑽油平台使用本地 AI 進行設備故障診斷
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 10: 教育應用 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>教育應用場景</h2>
+                <div class="two-column">
+                    <div class="concept-card">
+                        <span class="icon-large">👨‍🎓</span>
+                        <h3>24 小時 AI 家教</h3>
+                        <p>為學生提供全天候的學習輔導。</p>
+                        <ul>
+                            <li>學生無限次發問</li>
+                            <li>不用擔心 API 費用</li>
+                            <li>可客製教學風格</li>
+                            <li>離線環境也能學習</li>
+                        </ul>
+                        <div class="box info" style="padding: 15px; margin-top: 15px;">
+                            <strong>蘇格拉底式教學：</strong>AI 不直接給答案，而是用問題引導學生思考！
+                        </div>
+                    </div>
+                    <div class="concept-card">
+                        <span class="icon-large">💻</span>
+                        <h3>程式學習助教</h3>
+                        <p>初學者的最佳學習夥伴。</p>
+                        <ul>
+                            <li>分析錯誤訊息並解釋</li>
+                            <li>提供修正建議</li>
+                            <li>解釋程式碼邏輯</li>
+                            <li>完全免費無限次</li>
+                        </ul>
+                        <div class="box info" style="padding: 15px; margin-top: 15px;">
+                            <strong>隱私保護：</strong>學生程式碼不會被用於雲端 AI 訓練！
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 11: 個人應用 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>個人應用場景</h2>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <span class="icon-large">✍️</span>
+                        <h3>創意寫作輔助</h3>
+                        <ul>
+                            <li>生成文章大綱</li>
+                            <li>潤飾文字改寫</li>
+                            <li>角色對話生成</li>
+                            <li>標題建議發想</li>
+                        </ul>
+                        <p style="color: #28a745; font-weight: bold; margin-top: 15px;">想生成多少次都可以！</p>
+                    </div>
+                    <div class="concept-card">
+                        <span class="icon-large">🌍</span>
+                        <h3>語言學習助手</h3>
+                        <ul>
+                            <li>扮演不同角色對話</li>
+                            <li>糾正文法錯誤</li>
+                            <li>解釋單字用法</li>
+                            <li>24 小時陪練</li>
+                        </ul>
+                        <p style="color: #28a745; font-weight: bold; margin-top: 15px;">比真人家教便宜 100 倍！</p>
+                    </div>
+                    <div class="concept-card">
+                        <span class="icon-large">🔍</span>
+                        <h3>程式碼審查</h3>
+                        <ul>
+                            <li>分析程式碼品質</li>
+                            <li>建議重構方式</li>
+                            <li>生成單元測試</li>
+                            <li>解釋複雜邏輯</li>
+                        </ul>
+                        <p style="color: #28a745; font-weight: bold; margin-top: 15px;">企業程式碼不外洩！</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 12: 本地 AI 核心價值 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>本地 AI 的三大核心價值</h2>
+                <div class="concept-grid">
+                    <div class="concept-card" style="text-align: center; padding: 40px;">
+                        <span style="font-size: 72px;">💰</span>
+                        <h3 style="font-size: 28px; color: #667eea;">經濟自由</h3>
+                        <ul style="text-align: left; margin-top: 20px;">
+                            <li>一次投資，永久免費</li>
+                            <li>無 API 費用</li>
+                            <li>無配額限制</li>
+                            <li>無隱藏成本</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card" style="text-align: center; padding: 40px;">
+                        <span style="font-size: 72px;">🔐</span>
+                        <h3 style="font-size: 28px; color: #667eea;">資料主權</h3>
+                        <ul style="text-align: left; margin-top: 20px;">
+                            <li>所有資料本機處理</li>
+                            <li>絕不外洩</li>
+                            <li>符合法規要求</li>
+                            <li>適合敏感資料</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card" style="text-align: center; padding: 40px;">
+                        <span style="font-size: 72px;">⚙️</span>
+                        <h3 style="font-size: 28px; color: #667eea;">技術掌控</h3>
+                        <ul style="text-align: left; margin-top: 20px;">
+                            <li>完全掌握系統</li>
+                            <li>可深度客製化</li>
+                            <li>不受外部影響</li>
+                            <li>離線可用</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 13: 本章預告 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>本章學習路線圖</h2>
+                <div style="display: flex; flex-direction: column; gap: 20px; margin-top: 30px;">
+                    <div class="box success" style="display: flex; align-items: center; gap: 20px;">
+                        <span style="font-size: 36px; min-width: 50px;">1️⃣</span>
+                        <div>
+                            <h3 style="margin: 0;">Part 1：本地 AI 入門與價值</h3>
+                            <p style="margin: 5px 0 0 0; color: #155724;">✅ 你現在在這裡！了解為什麼需要本地 AI</p>
+                        </div>
+                    </div>
+                    <div class="box info" style="display: flex; align-items: center; gap: 20px;">
+                        <span style="font-size: 36px; min-width: 50px;">2️⃣</span>
+                        <div>
+                            <h3 style="margin: 0;">Part 2：快速上手 Ollama</h3>
+                            <p style="margin: 5px 0 0 0;">安裝 Ollama、下載模型、開始對話</p>
+                        </div>
+                    </div>
+                    <div class="box info" style="display: flex; align-items: center; gap: 20px;">
+                        <span style="font-size: 36px; min-width: 50px;">3️⃣</span>
+                        <div>
+                            <h3 style="margin: 0;">Part 3：自建網頁對話平台</h3>
+                            <p style="margin: 5px 0 0 0;">用 HTML + JavaScript 串接 Ollama API</p>
+                        </div>
+                    </div>
+                    <div class="box info" style="display: flex; align-items: center; gap: 20px;">
+                        <span style="font-size: 36px; min-width: 50px;">4️⃣</span>
+                        <div>
+                            <h3 style="margin: 0;">Part 4：系統架構與模型選擇</h3>
+                            <p style="margin: 5px 0 0 0;">深入理解架構、效能調優技巧</p>
+                        </div>
+                    </div>
+                    <div class="box info" style="display: flex; align-items: center; gap: 20px;">
+                        <span style="font-size: 36px; min-width: 50px;">5️⃣</span>
+                        <div>
+                            <h3 style="margin: 0;">Part 5：實戰案例與延伸</h3>
+                            <p style="margin: 5px 0 0 0;">5 大案例實作、進階應用方向</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 14: 總結 -->
+        <div class="slide">
+            <div class="content-card" style="text-align: center;">
+                <h2 style="border: none;">Part 1 重點回顧</h2>
+                <div class="concept-grid" style="margin-top: 40px;">
+                    <div class="concept-card">
+                        <h3>✅ 雲端 AI 有限制</h3>
+                        <p>費用、隱私、網路、配額、審查</p>
+                    </div>
+                    <div class="concept-card">
+                        <h3>✅ 本地 AI 是解答</h3>
+                        <p>免費、隱私、離線、無限制</p>
+                    </div>
+                    <div class="concept-card">
+                        <h3>✅ Ollama 很簡單</h3>
+                        <p>一鍵安裝、多種模型</p>
+                    </div>
+                    <div class="concept-card">
+                        <h3>✅ 應用場景豐富</h3>
+                        <p>企業、教育、個人</p>
+                    </div>
+                </div>
+                <div style="margin-top: 50px;">
+                    <p style="font-size: 28px; color: #667eea; font-weight: bold;">準備好了嗎？</p>
+                    <p style="font-size: 24px;">下一個 Part 我們將實際安裝 Ollama，開始你的本地 AI 之旅！</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 導航箭頭 -->
+    <button class="nav-arrow prev-arrow" id="prevBtn" onclick="changeSlide(-1)">❮</button>
+    <button class="nav-arrow next-arrow" id="nextBtn" onclick="changeSlide(1)">❯</button>
+
+    <!-- 頁碼指示器 -->
+    <div class="indicators" id="indicatorContainer"></div>
+    <div class="slide-number" id="slideNumber"></div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+
+        function init() {
+            createIndicators();
+            showSlide(0);
+            updateButtons();
+            document.addEventListener('keydown', handleKeydown);
+        }
+
+        function handleKeydown(e) {
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+            if (e.key === 'ArrowRight') changeSlide(1);
+            if (e.key === 'Home') goToSlide(0);
+            if (e.key === 'End') goToSlide(totalSlides - 1);
+        }
+
+        function createIndicators() {
+            const container = document.getElementById('indicatorContainer');
+            container.innerHTML = '';
+            slides.forEach((_, index) => {
+                const dot = document.createElement('div');
+                dot.className = 'dot';
+                dot.onclick = () => goToSlide(index);
+                container.appendChild(dot);
+            });
+        }
+
+        function showSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+
+            slides.forEach(slide => slide.classList.remove('active'));
+            slides[index].classList.add('active');
+            currentSlide = index;
+
+            const dots = document.querySelectorAll('.dot');
+            dots.forEach((dot, idx) => {
+                dot.classList.toggle('active', idx === index);
+            });
+
+            document.getElementById('slideNumber').textContent = `${index + 1} / ${totalSlides}`;
+            updateButtons();
+        }
+
+        function changeSlide(direction) {
+            showSlide(currentSlide + direction);
+        }
+
+        function goToSlide(index) {
+            showSlide(index);
+        }
+
+        function updateButtons() {
+            document.getElementById('prevBtn').disabled = currentSlide === 0;
+            document.getElementById('nextBtn').disabled = currentSlide === totalSlides - 1;
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

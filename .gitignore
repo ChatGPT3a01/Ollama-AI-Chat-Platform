@@ -1,0 +1,6 @@
+# 排除書籍和截圖
+book/
+截圖/
+
+# Claude Code 設定
+.claude/

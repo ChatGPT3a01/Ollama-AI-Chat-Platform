@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 程式碼審查工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", "Consolas", sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: #0e639c;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .toolbar {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .toolbar label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        select, button {
+            padding: 10px 20px;
+            font-size: 14px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        button {
+            background: linear-gradient(135deg, #0e639c 0%, #1177bb 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .feature-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .feature-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            background: #e3f2fd;
+            color: #1565c0;
+            border: 1px solid #90caf9;
+        }
+
+        .feature-btn:hover {
+            background: #bbdefb;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .panel {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .panel h3 {
+            background: #f5f5f5;
+            padding: 15px 20px;
+            margin: 0;
+            color: #333;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        textarea {
+            width: 100%;
+            height: 450px;
+            background: #fafafa;
+            color: #333;
+            border: none;
+            padding: 20px;
+            font-family: "Consolas", "Monaco", monospace;
+            font-size: 14px;
+            resize: vertical;
+            outline: none;
+        }
+
+        textarea:focus {
+            background: #fff;
+        }
+
+        #result {
+            background: #fafafa;
+            padding: 20px;
+            min-height: 450px;
+            white-space: pre-wrap;
+            line-height: 1.8;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+
+        .loading {
+            color: #0e639c;
+            font-style: italic;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .stats {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: flex;
+            gap: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-item .number {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #0e639c;
+        }
+
+        .stat-item .label {
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .result-section {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #fff;
+            border-left: 4px solid #0e639c;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .result-section.warning {
+            border-left-color: #ff9800;
+            background: #fff3e0;
+        }
+
+        .result-section.error {
+            border-left-color: #f44336;
+            background: #ffebee;
+        }
+
+        .result-section.success {
+            border-left-color: #4caf50;
+            background: #e8f5e9;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>AI 程式碼審查工具</h1>
+
+    <div class="toolbar">
+        <label>程式語言：</label>
+        <select id="language">
+            <option value="javascript">JavaScript</option>
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="go">Go</option>
+            <option value="csharp">C#</option>
+            <option value="typescript">TypeScript</option>
+            <option value="php">PHP</option>
+            <option value="ruby">Ruby</option>
+            <option value="rust">Rust</option>
+        </select>
+
+        <label>模型：</label>
+        <select id="model">
+            <option value="llama3">Llama 3 (8B)</option>
+            <option value="mistral">Mistral (7B)</option>
+            <option value="codellama">Code Llama</option>
+        </select>
+
+        <div class="feature-buttons">
+            <button class="feature-btn" onclick="reviewCode()">程式碼審查</button>
+            <button class="feature-btn" onclick="generateTests()">生成測試</button>
+            <button class="feature-btn" onclick="refactorCode()">重構建議</button>
+            <button class="feature-btn" onclick="explainCode()">解釋程式碼</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="panel">
+            <h3>貼上程式碼</h3>
+            <textarea id="code" placeholder="在這裡貼上要審查的程式碼..."></textarea>
+        </div>
+        <div class="panel">
+            <h3>審查結果</h3>
+            <div id="result">審查結果將顯示在這裡...</div>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat-item">
+            <div class="number" id="review-count">0</div>
+            <div class="label">審查次數</div>
+        </div>
+        <div class="stat-item">
+            <div class="number" id="bug-count">0</div>
+            <div class="label">發現問題</div>
+        </div>
+        <div class="stat-item">
+            <div class="number" id="lines-count">0</div>
+            <div class="label">已審查行數</div>
+        </div>
+    </div>
+
+    <script>
+    const OLLAMA_API = 'http://localhost:11434/api/generate';
+    let reviewCount = 0;
+    let bugCount = 0;
+    let linesCount = 0;
+
+    async function callOllama(prompt) {
+        const model = document.getElementById('model').value;
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = '<span class="loading">AI 正在分析程式碼...</span>';
+
+        try {
+            const response = await fetch(OLLAMA_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: model,
+                    prompt: prompt,
+                    stream: false
+                })
+            });
+
+            const data = await response.json();
+            return data.response;
+
+        } catch (err) {
+            return '錯誤：' + err.message + '\n請確認 Ollama 已啟動。';
+        }
+    }
+
+    async function reviewCode() {
+        const code = document.getElementById('code').value;
+        const language = document.getElementById('language').value;
+        const resultDiv = document.getElementById('result');
+
+        if (!code.trim()) {
+            resultDiv.textContent = '請先貼上程式碼！';
+            return;
+        }
+
+        const prompt = `請審查以下 ${language} 程式碼，並提供：
+
+1. 潛在的 Bug
+2. 效能改善建議
+3. 安全性問題
+4. 程式碼風格建議
+
+程式碼：
+\`\`\`${language}
+${code}
+\`\`\`
+
+請用繁體中文回答，並說明原因。`;
+
+        const result = await callOllama(prompt);
+        resultDiv.textContent = result;
+
+        // 更新統計
+        reviewCount++;
+        linesCount += code.split('\n').length;
+        if (result.includes('Bug') || result.includes('問題') || result.includes('錯誤')) {
+            bugCount++;
+        }
+        updateStats();
+    }
+
+    async function generateTests() {
+        const code = document.getElementById('code').value;
+        const language = document.getElementById('language').value;
+        const resultDiv = document.getElementById('result');
+
+        if (!code.trim()) {
+            resultDiv.textContent = '請先貼上程式碼！';
+            return;
+        }
+
+        const prompt = `請為以下 ${language} 程式碼生成單元測試：
+
+程式碼：
+\`\`\`${language}
+${code}
+\`\`\`
+
+請生成完整的測試程式碼，包含：
+1. 正常情況測試
+2. 邊界條件測試
+3. 錯誤處理測試
+
+請用繁體中文說明每個測試案例的目的。`;
+
+        const result = await callOllama(prompt);
+        resultDiv.textContent = result;
+
+        reviewCount++;
+        linesCount += code.split('\n').length;
+        updateStats();
+    }
+
+    async function refactorCode() {
+        const code = document.getElementById('code').value;
+        const language = document.getElementById('language').value;
+        const resultDiv = document.getElementById('result');
+
+        if (!code.trim()) {
+            resultDiv.textContent = '請先貼上程式碼！';
+            return;
+        }
+
+        const prompt = `請分析以下 ${language} 程式碼，並提供重構建議：
+
+程式碼：
+\`\`\`${language}
+${code}
+\`\`\`
+
+請提供：
+1. 程式碼結構改善建議
+2. 命名改善建議
+3. 可抽取的函數或模組
+4. 設計模式建議
+5. 重構後的程式碼範例
+
+請用繁體中文回答。`;
+
+        const result = await callOllama(prompt);
+        resultDiv.textContent = result;
+
+        reviewCount++;
+        linesCount += code.split('\n').length;
+        updateStats();
+    }
+
+    async function explainCode() {
+        const code = document.getElementById('code').value;
+        const language = document.getElementById('language').value;
+        const resultDiv = document.getElementById('result');
+
+        if (!code.trim()) {
+            resultDiv.textContent = '請先貼上程式碼！';
+            return;
+        }
+
+        const prompt = `請解釋以下 ${language} 程式碼的運作邏輯：
+
+程式碼：
+\`\`\`${language}
+${code}
+\`\`\`
+
+請提供：
+1. 整體功能說明
+2. 逐行或逐區塊解釋
+3. 使用的演算法或設計模式
+4. 時間和空間複雜度分析（如適用）
+
+請用繁體中文回答，讓初學者也能理解。`;
+
+        const result = await callOllama(prompt);
+        resultDiv.textContent = result;
+
+        reviewCount++;
+        linesCount += code.split('\n').length;
+        updateStats();
+    }
+
+    function updateStats() {
+        document.getElementById('review-count').textContent = reviewCount;
+        document.getElementById('bug-count').textContent = bugCount;
+        document.getElementById('lines-count').textContent = linesCount;
+    }
+    </script>
+</body>
+</html>

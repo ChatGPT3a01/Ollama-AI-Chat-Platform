@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蘇格拉底式 AI 家教系統</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 1200px;
+            height: 90vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .student-info {
+            background: #f0fff0;
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .student-info label {
+            font-weight: bold;
+        }
+
+        .student-info input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .student-info select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .stats {
+            background: #e8f5e9;
+            padding: 10px 15px;
+            font-size: 0.9em;
+            color: #2e7d32;
+            border-bottom: 1px solid #c8e6c9;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 15px;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            line-height: 1.6;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-bottom-left-radius: 4px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+            color: #11998e;
+            font-style: italic;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .chat-input:focus {
+            border-color: #11998e;
+        }
+
+        .send-button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .send-button:hover {
+            opacity: 0.9;
+        }
+
+        .send-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">蘇格拉底式 AI 家教系統</div>
+
+        <div class="student-info">
+            <label>學生姓名：</label>
+            <input type="text" id="student-name" value="學生A" placeholder="輸入姓名">
+            <label>科目：</label>
+            <select id="subject-select">
+                <option value="數學">數學</option>
+                <option value="物理">物理</option>
+                <option value="化學">化學</option>
+                <option value="程式設計">程式設計</option>
+                <option value="英文">英文</option>
+            </select>
+            <label>模型：</label>
+            <select id="model-select">
+                <option value="llama3">Llama 3 (8B)</option>
+                <option value="mistral">Mistral (7B)</option>
+            </select>
+        </div>
+
+        <div class="stats" id="stats">
+            提問次數：<span id="question-count">0</span> |
+            最常問的主題：<span id="top-topic">尚無資料</span>
+        </div>
+
+        <div id="chat-messages" class="chat-messages">
+            <div class="message assistant">
+                <div class="message-content">
+                    同學你好！我是你的 AI 家教老師。<br><br>
+                    我會使用「蘇格拉底式教學法」來幫助你學習，這意味著：<br>
+                    • 我不會直接給你答案<br>
+                    • 我會用問題引導你思考<br>
+                    • 我會把複雜問題拆解成小步驟<br>
+                    • 答錯沒關係，我會給你提示<br><br>
+                    你今天想學什麼呢？
+                </div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">老師正在思考如何引導你...</div>
+
+        <div class="chat-input-container">
+            <input type="text" id="chat-input" class="chat-input" placeholder="輸入你的問題...">
+            <button id="send-button" class="send-button">發送</button>
+        </div>
+    </div>
+
+    <script>
+        const OLLAMA_API = "http://localhost:11434/api/generate";
+
+        const chatMessages = document.getElementById("chat-messages");
+        const chatInput = document.getElementById("chat-input");
+        const sendButton = document.getElementById("send-button");
+        const loadingIndicator = document.getElementById("loading");
+        const modelSelect = document.getElementById("model-select");
+        const subjectSelect = document.getElementById("subject-select");
+        const studentNameInput = document.getElementById("student-name");
+
+        let currentModel = "llama3";
+        let questionCount = 0;
+
+        modelSelect.addEventListener("change", (e) => {
+            currentModel = e.target.value;
+        });
+
+        function addMessage(role, content) {
+            const msg = document.createElement("div");
+            msg.className = `message ${role}`;
+            const bubble = document.createElement("div");
+            bubble.className = "message-content";
+            bubble.innerHTML = content.replace(/\n/g, "<br>");
+            msg.appendChild(bubble);
+            chatMessages.appendChild(msg);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // 蘇格拉底式教學發送訊息
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            addMessage("user", message);
+            chatInput.value = "";
+            loadingIndicator.classList.add("active");
+            sendButton.disabled = true;
+
+            const studentId = studentNameInput.value || "學生A";
+            const subject = subjectSelect.value;
+
+            // 建立蘇格拉底式教學提示詞
+            const teacherPrompt = `
+你是一位耐心的${subject}老師，使用「蘇格拉底式教學法」來引導學生思考。
+
+教學原則：
+1. 不要直接給答案，而是用問題引導學生思考
+2. 將複雜問題拆解成小步驟
+3. 當學生答錯時，提供提示而非批評
+4. 鼓勵學生說出自己的思考過程
+5. 用生活化的例子解釋抽象概念
+
+學生目前的問題：
+${message}
+
+請用繁體中文回答，並保持親切、鼓勵的語氣。
+`;
+
+            try {
+                const res = await fetch(OLLAMA_API, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        model: currentModel,
+                        prompt: teacherPrompt,
+                        stream: false
+                    })
+                });
+
+                const data = await res.json();
+                addMessage("assistant", data.response);
+
+                // 儲存學習歷程
+                saveStudentHistory(studentId, message, data.response);
+
+                // 更新統計
+                questionCount++;
+                document.getElementById("question-count").textContent = questionCount;
+                updateTopTopic(studentId);
+
+            } catch (err) {
+                addMessage("assistant", "錯誤：" + err.message);
+            }
+
+            loadingIndicator.classList.remove("active");
+            sendButton.disabled = false;
+        }
+
+        sendButton.addEventListener("click", sendMessage);
+        chatInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") sendMessage();
+        });
+
+        // 儲存對話記錄到 localStorage
+        function saveStudentHistory(studentId, question, answer) {
+            let history = JSON.parse(localStorage.getItem(`student_${studentId}`) || '[]');
+            history.push({
+                timestamp: new Date().toISOString(),
+                question: question,
+                answer: answer,
+                topic: detectTopic(question)
+            });
+            localStorage.setItem(`student_${studentId}`, JSON.stringify(history));
+        }
+
+        // 自動偵測問題主題
+        function detectTopic(question) {
+            if (question.includes('方程') || question.includes('x') || question.includes('=')) return '代數';
+            if (question.includes('三角') || question.includes('圓') || question.includes('角度')) return '幾何';
+            if (question.includes('機率') || question.includes('統計') || question.includes('平均')) return '統計';
+            if (question.includes('微分') || question.includes('積分')) return '微積分';
+            if (question.includes('函數') || question.includes('function')) return '函數';
+            return '其他';
+        }
+
+        // 分析學習弱點
+        function analyzeWeakPoints(studentId) {
+            const history = JSON.parse(localStorage.getItem(`student_${studentId}`) || '[]');
+            const topicCount = {};
+
+            history.forEach(record => {
+                topicCount[record.topic] = (topicCount[record.topic] || 0) + 1;
+            });
+
+            return Object.entries(topicCount).sort((a, b) => b[1] - a[1]);
+        }
+
+        // 更新最常問的主題
+        function updateTopTopic(studentId) {
+            const weakPoints = analyzeWeakPoints(studentId);
+            if (weakPoints.length > 0) {
+                document.getElementById("top-topic").textContent = weakPoints[0][0];
+            }
+        }
+
+        // 頁面載入時更新統計
+        const studentId = studentNameInput.value || "學生A";
+        const history = JSON.parse(localStorage.getItem(`student_${studentId}`) || '[]');
+        questionCount = history.length;
+        document.getElementById("question-count").textContent = questionCount;
+        updateTopTopic(studentId);
+    </script>
+</body>
+</html>

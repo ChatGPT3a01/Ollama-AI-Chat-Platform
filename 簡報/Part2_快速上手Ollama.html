@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Part 2 - 快速上手 Ollama</title>
+    <style>
+        /* 基礎設定 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            color: #333;
+        }
+
+        /* === 導航列 === */
+        .nav-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            z-index: 10000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .nav-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .nav-buttons { display: flex; gap: 12px; }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nav-btn:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* 確保連結無底線 */
+        a.nav-btn, a.nav-btn:hover, a.nav-btn:visited, a.nav-btn:active {
+            text-decoration: none !important;
+        }
+
+        /* === 導航箭頭 === */
+        .nav-arrow {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.25);
+            color: white;
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.4);
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 9000;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .nav-arrow:hover {
+            background: rgba(255,255,255,0.5);
+            transform: translateY(-50%) scale(1.1);
+        }
+        .prev-arrow { left: 30px; }
+        .next-arrow { right: 30px; }
+        .nav-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* === 投影片容器 === */
+        .slide-container {
+            width: 100%;
+            height: 100vh;
+            padding-top: 60px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .slide {
+            position: absolute;
+            top: 60px; left: 0;
+            width: 100%;
+            height: calc(100vh - 60px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: 10;
+        }
+
+        .slide.active {
+            display: flex;
+            opacity: 1;
+            z-index: 20;
+        }
+
+        /* === 內容卡片 === */
+        .content-card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            padding: 60px;
+            max-width: 1400px;
+            width: 95%;
+            max-height: 88vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* 通用樣式 */
+        h1 { color: #667eea; font-size: 56px; margin-bottom: 24px; text-align: center; }
+        h2 { color: #764ba2; font-size: 38px; margin-bottom: 35px; border-bottom: 3px solid #667eea; padding-bottom: 12px; }
+        h3 { color: #667eea; font-size: 26px; margin: 30px 0 15px 0; }
+        p, li { font-size: 20px; line-height: 1.8; color: #444; margin-bottom: 15px; }
+        ul, ol { margin-left: 30px; }
+        code { background: #f0f2f5; padding: 3px 8px; border-radius: 6px; font-family: 'Consolas', monospace; color: #d63384; font-weight: 600; font-size: 0.95em; }
+        pre { background: #282c34; color: #abb2bf; padding: 25px; border-radius: 12px; overflow-x: auto; margin: 25px 0; font-size: 18px; line-height: 1.6; font-family: 'Consolas', monospace; }
+
+        .box { padding: 25px; border-radius: 12px; margin: 25px 0; border-left: 6px solid; font-size: 20px; }
+        .info { background: #e3f2fd; border-color: #2196f3; color: #0d47a1; }
+        .warning { background: #fff3cd; border-color: #ffc107; color: #856404; }
+        .success { background: #d4edda; border-color: #28a745; color: #155724; }
+        .danger { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+        .highlight { background: linear-gradient(120deg, #667eea 0%, #764ba2 100%); padding: 2px 8px; border-radius: 4px; font-weight: bold; color: white; }
+
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-top: 30px; }
+        .concept-card { background: #f8f9fa; padding: 25px; border-radius: 15px; border: 1px solid #e9ecef; transition: transform 0.3s; }
+        .concept-card:hover { transform: translateY(-8px); border-color: #667eea; }
+
+        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 20px; }
+        @media (max-width: 900px) { .two-column { grid-template-columns: 1fr; } }
+
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 18px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+        th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        tr:hover { background: #f5f5f5; }
+
+        .step-number {
+            display: inline-flex;
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 20px;
+            margin-right: 15px;
+        }
+
+        .command-box {
+            background: #1e1e1e;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 15px 0;
+            position: relative;
+        }
+        .command-box code {
+            background: transparent;
+            color: #4fc3f7;
+            font-size: 20px;
+        }
+        .command-label {
+            position: absolute;
+            top: -10px;
+            left: 15px;
+            background: #667eea;
+            color: white;
+            padding: 2px 12px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .indicators { position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 4000; padding: 10px 25px; background: rgba(0,0,0,0.3); border-radius: 30px; backdrop-filter: blur(5px); }
+        .dot { width: 12px; height: 12px; background: rgba(255,255,255,0.4); border-radius: 50%; cursor: pointer; transition: all 0.3s; }
+        .dot.active { background: #4fc3f7; transform: scale(1.3); }
+    </style>
+</head>
+<body>
+
+    <!-- 導航列 -->
+    <div class="nav-bar">
+        <div class="nav-title">Part 2 - 快速上手 Ollama</div>
+        <div class="nav-buttons">
+            <button class="nav-btn" onclick="goToSlide(0)">🏠 首頁</button>
+            <button class="nav-btn" onclick="toggleFullscreen()">🖥️ 全螢幕</button>
+            <a href="https://www.facebook.com/?locale=zh_TW" target="_blank" class="nav-btn">📘 FB</a>
+            <a href="https://www.youtube.com/@Liang-yt02" target="_blank" class="nav-btn">🎥 YT</a>
+        </div>
+    </div>
+
+    <!-- 投影片內容 -->
+    <div class="slide-container">
+
+        <!-- Slide 1: 封面 -->
+        <div class="slide active">
+            <div class="content-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <h4 style="color: #667eea; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px;">CH10 本地 AI 模型與對話平台</h4>
+                <h1>Part 2: 快速上手 Ollama</h1>
+                <h2 style="border: none; font-weight: normal; font-size: 28px; color: #666; max-width: 800px;">
+                    從安裝到對話，15 分鐘建立你的本地 AI 環境
+                </h2>
+                <div style="margin-top: 40px; display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+                    <span class="highlight">安裝 Ollama</span>
+                    <span class="highlight">下載模型</span>
+                    <span class="highlight">終端機操作</span>
+                    <span class="highlight">模型管理</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: 學習目標 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>本單元學習目標</h2>
+                <p>完成本單元後，你將能夠：</p>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <h3>1. 安裝 Ollama</h3>
+                        <p>在 Windows、macOS、Linux 上完成 Ollama 的安裝與啟動</p>
+                    </div>
+                    <div class="concept-card">
+                        <h3>2. 下載 AI 模型</h3>
+                        <p>使用 <code>ollama pull</code> 指令下載 Llama 3、Mistral 等開源模型</p>
+                    </div>
+                    <div class="concept-card">
+                        <h3>3. 終端機對話</h3>
+                        <p>使用 <code>ollama run</code> 在命令列與 AI 進行對話測試</p>
+                    </div>
+                    <div class="concept-card">
+                        <h3>4. 模型管理</h3>
+                        <p>學會列出、刪除、更新模型等管理指令</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: 什麼是 Ollama -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>什麼是 Ollama？</h2>
+                <p>Ollama 是一個讓你能在<strong>本地電腦</strong>運行大型語言模型（LLM）的開源工具</p>
+
+                <div class="two-column">
+                    <div>
+                        <h3>核心功能</h3>
+                        <ul>
+                            <li>一鍵下載開源 AI 模型</li>
+                            <li>在本機運行，無需網路</li>
+                            <li>提供 REST API 介面</li>
+                            <li>支援多種作業系統</li>
+                            <li>資源佔用優化</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>類比理解</h3>
+                        <div class="box info">
+                            就像在自己電腦上安裝一個「離線版 ChatGPT」，所有對話都在本機處理，不會上傳到任何雲端服務。
+                        </div>
+                    </div>
+                </div>
+
+                <div class="box success" style="margin-top: 30px;">
+                    <strong>官方網站：</strong><code>https://ollama.com</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: 支援的模型 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>Ollama 支援的 AI 模型</h2>
+                <table>
+                    <tr>
+                        <th>模型名稱</th>
+                        <th>開發者</th>
+                        <th>參數規模</th>
+                        <th>特色</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Llama 3</strong></td>
+                        <td>Meta (Facebook)</td>
+                        <td>8B / 70B</td>
+                        <td>最推薦，品質接近 GPT-3.5</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Mistral</strong></td>
+                        <td>Mistral AI</td>
+                        <td>7B</td>
+                        <td>速度快，效能優異</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Gemma</strong></td>
+                        <td>Google</td>
+                        <td>2B / 7B</td>
+                        <td>輕量化，適合入門</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Phi</strong></td>
+                        <td>Microsoft</td>
+                        <td>2.7B</td>
+                        <td>超輕量，低資源需求</td>
+                    </tr>
+                </table>
+                <div class="box warning">
+                    <strong>建議：</strong>初學者從 <code>llama3</code>（8B 版本）開始，檔案約 4.7GB，一般電腦都能運行。
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: 安裝步驟 - Windows -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>步驟 1：下載並安裝 Ollama</h2>
+
+                <h3><span class="step-number">1</span>前往官網下載</h3>
+                <div class="command-box">
+                    <span class="command-label">網址</span>
+                    <code>https://ollama.com</code>
+                </div>
+                <p>網站會自動偵測你的作業系統，顯示對應的下載按鈕。</p>
+
+                <div class="two-column" style="margin-top: 30px;">
+                    <div>
+                        <h3>Windows</h3>
+                        <ol>
+                            <li>點擊「Download for Windows」</li>
+                            <li>下載 <code>OllamaSetup.exe</code></li>
+                            <li>雙擊執行安裝精靈</li>
+                            <li>完成後系統匣出現圖示</li>
+                        </ol>
+                    </div>
+                    <div>
+                        <h3>macOS</h3>
+                        <ol>
+                            <li>點擊「Download for Mac」</li>
+                            <li>下載 <code>.dmg</code> 檔案</li>
+                            <li>拖曳到「應用程式」資料夾</li>
+                            <li>完成後選單列出現圖示</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="box info" style="margin-top: 20px;">
+                    <strong>Linux 用戶：</strong>在終端機執行 <code>curl -fsSL https://ollama.com/install.sh | sh</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: 確認安裝成功 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>步驟 2：確認安裝成功</h2>
+
+                <h3><span class="step-number">2</span>開啟終端機 / 命令提示字元</h3>
+
+                <div class="two-column">
+                    <div>
+                        <h3>Windows</h3>
+                        <p>按下 <code>Win + R</code>，輸入 <code>cmd</code>，按 Enter</p>
+                        <p>或搜尋「命令提示字元」</p>
+                    </div>
+                    <div>
+                        <h3>macOS / Linux</h3>
+                        <p>開啟「終端機」應用程式</p>
+                        <p>或按 <code>Cmd + Space</code> 搜尋 Terminal</p>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px;"><span class="step-number">3</span>輸入版本檢查指令</h3>
+                <div class="command-box">
+                    <span class="command-label">終端機</span>
+                    <code>ollama --version</code>
+                </div>
+
+                <div class="box success">
+                    <strong>成功訊息範例：</strong><br>
+                    <code>ollama version 0.1.32</code><br><br>
+                    如果看到版本號，表示安裝成功！
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: 下載第一個模型 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>步驟 3：下載你的第一個 AI 模型</h2>
+
+                <h3><span class="step-number">4</span>使用 pull 指令下載模型</h3>
+                <div class="command-box">
+                    <span class="command-label">終端機</span>
+                    <code>ollama pull llama3</code>
+                </div>
+
+                <p>系統會開始下載 Llama 3 模型（約 4.7GB），顯示下載進度：</p>
+
+                <pre>pulling manifest
+pulling 6a0746a1ec1a...  100%  4.7GB/4.7GB
+verifying sha256 digest
+writing manifest
+success</pre>
+
+                <div class="box warning">
+                    <strong>下載時間：</strong>依網路速度而定，通常需要 5-20 分鐘。<br>
+                    <strong>儲存位置：</strong>模型會自動儲存在系統預設位置，不需手動管理。
+                </div>
+
+                <div class="box info">
+                    <strong>想要更快？</strong>可以先下載較小的模型：<code>ollama pull mistral</code>（約 4GB）
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: 啟動對話 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>步驟 4：在終端機與 AI 對話</h2>
+
+                <h3><span class="step-number">5</span>使用 run 指令啟動對話</h3>
+                <div class="command-box">
+                    <span class="command-label">終端機</span>
+                    <code>ollama run llama3</code>
+                </div>
+
+                <p>等待幾秒鐘載入模型後，會看到提示符號 <code>>>></code>，表示可以開始對話了！</p>
+
+                <h3 style="margin-top: 30px;">測試對話</h3>
+                <pre>>>> 你好，請用繁體中文自我介紹
+
+你好！我是 Llama 3，一個由 Meta 開發的開源大型語言模型。
+我可以幫助你：
+- 回答各種問題
+- 撰寫文章和程式碼
+- 翻譯多國語言
+- 進行創意寫作
+有什麼我可以幫助你的嗎？
+
+>>> /bye</pre>
+
+                <div class="box success">
+                    <strong>離開對話：</strong>輸入 <code>/bye</code> 或按 <code>Ctrl + D</code> 即可退出
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: 常用指令總覽 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>Ollama 常用指令總覽</h2>
+                <table>
+                    <tr>
+                        <th>指令</th>
+                        <th>功能</th>
+                        <th>範例</th>
+                    </tr>
+                    <tr>
+                        <td><code>ollama pull</code></td>
+                        <td>下載模型</td>
+                        <td><code>ollama pull llama3</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>ollama run</code></td>
+                        <td>啟動對話</td>
+                        <td><code>ollama run llama3</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>ollama list</code></td>
+                        <td>列出已下載的模型</td>
+                        <td><code>ollama list</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>ollama rm</code></td>
+                        <td>刪除模型</td>
+                        <td><code>ollama rm llama3</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>ollama serve</code></td>
+                        <td>啟動 API 伺服器</td>
+                        <td><code>ollama serve</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>ollama --help</code></td>
+                        <td>查看所有指令</td>
+                        <td><code>ollama --help</code></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Slide 10: 模型管理 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>模型管理實戰</h2>
+
+                <div class="two-column">
+                    <div>
+                        <h3>查看已下載模型</h3>
+                        <div class="command-box">
+                            <code>ollama list</code>
+                        </div>
+                        <pre style="font-size: 14px;">NAME          SIZE    MODIFIED
+llama3:latest 4.7GB   2 hours ago
+mistral:latest 4.1GB  1 day ago</pre>
+                    </div>
+                    <div>
+                        <h3>刪除不需要的模型</h3>
+                        <div class="command-box">
+                            <code>ollama rm mistral</code>
+                        </div>
+                        <pre style="font-size: 14px;">deleted 'mistral'</pre>
+                        <p style="font-size: 16px;">釋放硬碟空間，清理不再使用的模型。</p>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px;">下載其他模型</h3>
+                <div class="concept-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="concept-card" style="padding: 15px;">
+                        <code>ollama pull mistral</code>
+                        <p style="font-size: 14px; margin-top: 10px;">速度快，7B 參數</p>
+                    </div>
+                    <div class="concept-card" style="padding: 15px;">
+                        <code>ollama pull gemma</code>
+                        <p style="font-size: 14px; margin-top: 10px;">Google 輕量模型</p>
+                    </div>
+                    <div class="concept-card" style="padding: 15px;">
+                        <code>ollama pull phi</code>
+                        <p style="font-size: 14px; margin-top: 10px;">微軟超輕量模型</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 11: API 伺服器 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>啟動 API 伺服器</h2>
+                <p>Ollama 提供 REST API，讓你可以用程式串接 AI 模型。</p>
+
+                <h3><span class="step-number">1</span>啟動伺服器（通常自動啟動）</h3>
+                <div class="command-box">
+                    <span class="command-label">終端機</span>
+                    <code>ollama serve</code>
+                </div>
+
+                <h3 style="margin-top: 30px;"><span class="step-number">2</span>確認伺服器運行中</h3>
+                <p>開啟瀏覽器，前往：</p>
+                <div class="command-box">
+                    <span class="command-label">網址</span>
+                    <code>http://localhost:11434</code>
+                </div>
+
+                <div class="box success">
+                    <strong>成功訊息：</strong>如果看到「Ollama is running」，表示 API 伺服器已就緒！
+                </div>
+
+                <div class="box info">
+                    <strong>API 端點：</strong><br>
+                    <code>POST http://localhost:11434/api/generate</code> - 生成文字<br>
+                    <code>POST http://localhost:11434/api/chat</code> - 對話模式
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 12: 常見問題 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>常見問題排解</h2>
+
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <h3>Q: 找不到 ollama 指令？</h3>
+                        <p><strong>A:</strong> 重新開啟終端機，或重新啟動電腦。Windows 用戶確認安裝時已加入 PATH。</p>
+                    </div>
+                    <div class="concept-card">
+                        <h3>Q: 下載模型很慢？</h3>
+                        <p><strong>A:</strong> 模型檔案較大（4-8GB），請耐心等待。可以嘗試使用 VPN 或換個網路環境。</p>
+                    </div>
+                    <div class="concept-card">
+                        <h3>Q: 記憶體不足錯誤？</h3>
+                        <p><strong>A:</strong> Llama3 8B 建議至少 8GB RAM。可改用較小的模型如 <code>phi</code> 或 <code>gemma:2b</code>。</p>
+                    </div>
+                    <div class="concept-card">
+                        <h3>Q: 回應速度很慢？</h3>
+                        <p><strong>A:</strong> 首次載入需要時間。有獨立顯卡（GPU）可大幅加速。關閉其他占用記憶體的程式。</p>
+                    </div>
+                </div>
+
+                <div class="box warning" style="margin-top: 30px;">
+                    <strong>硬體建議：</strong>
+                    <ul style="margin-top: 10px;">
+                        <li>最低配置：8GB RAM、20GB 硬碟空間</li>
+                        <li>建議配置：16GB RAM、SSD 硬碟、獨立顯卡</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 13: 小技巧 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>實用小技巧</h2>
+
+                <div class="two-column">
+                    <div>
+                        <h3>在對話中切換模型</h3>
+                        <pre>>>> /set model mistral
+Switched to model mistral
+
+>>> 你好
+（現在使用 Mistral 回答）</pre>
+                    </div>
+                    <div>
+                        <h3>調整模型參數</h3>
+                        <pre>>>> /set parameter temperature 0.8
+Temperature set to 0.8
+
+>>> /set parameter num_ctx 4096
+Context length set to 4096</pre>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px;">對話中的特殊指令</h3>
+                <table>
+                    <tr>
+                        <th>指令</th>
+                        <th>功能</th>
+                    </tr>
+                    <tr>
+                        <td><code>/bye</code></td>
+                        <td>結束對話</td>
+                    </tr>
+                    <tr>
+                        <td><code>/clear</code></td>
+                        <td>清除對話歷史</td>
+                    </tr>
+                    <tr>
+                        <td><code>/help</code></td>
+                        <td>查看可用指令</td>
+                    </tr>
+                    <tr>
+                        <td><code>/set</code></td>
+                        <td>設定參數</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Slide 14: 總結 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>Part 2 總結</h2>
+                <p>恭喜！你已經完成 Ollama 的基礎設定，現在擁有一個完全本地運行的 AI 系統。</p>
+
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <h3>已完成</h3>
+                        <ul>
+                            <li>安裝 Ollama 工具</li>
+                            <li>下載 Llama 3 模型</li>
+                            <li>在終端機測試對話</li>
+                            <li>學會模型管理指令</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card">
+                        <h3>核心指令</h3>
+                        <ul>
+                            <li><code>ollama pull [模型]</code></li>
+                            <li><code>ollama run [模型]</code></li>
+                            <li><code>ollama list</code></li>
+                            <li><code>ollama serve</code></li>
+                        </ul>
+                    </div>
+                    <div class="concept-card">
+                        <h3>下一步</h3>
+                        <p>在 Part 3，我們將學習如何建立一個美觀的<strong>網頁對話介面</strong>，串接 Ollama API，打造專屬的 AI 對話平台！</p>
+                    </div>
+                </div>
+
+                <div class="box success" style="margin-top: 30px; text-align: center;">
+                    <strong>你的本地 AI 助手已經準備就緒！</strong><br>
+                    完全免費 | 離線可用 | 隱私保護 | 無限對話
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 導航箭頭 -->
+    <button class="nav-arrow prev-arrow" id="prevBtn" onclick="changeSlide(-1)">&#10094;</button>
+    <button class="nav-arrow next-arrow" id="nextBtn" onclick="changeSlide(1)">&#10095;</button>
+
+    <!-- 頁碼指示器 -->
+    <div class="indicators" id="indicatorContainer"></div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+
+        function init() {
+            createIndicators();
+            showSlide(0);
+            updateButtons();
+            document.addEventListener('keydown', handleKeydown);
+        }
+
+        function handleKeydown(e) {
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+            if (e.key === 'ArrowRight') changeSlide(1);
+        }
+
+        function createIndicators() {
+            const container = document.getElementById('indicatorContainer');
+            container.innerHTML = '';
+            slides.forEach((_, index) => {
+                const dot = document.createElement('div');
+                dot.className = 'dot';
+                dot.onclick = () => goToSlide(index);
+                container.appendChild(dot);
+            });
+        }
+
+        function showSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+
+            slides.forEach(slide => slide.classList.remove('active'));
+            slides[index].classList.add('active');
+            currentSlide = index;
+
+            const dots = document.querySelectorAll('.dot');
+            dots.forEach((dot, idx) => {
+                dot.classList.toggle('active', idx === index);
+            });
+
+            updateButtons();
+        }
+
+        function changeSlide(direction) {
+            showSlide(currentSlide + direction);
+        }
+
+        function goToSlide(index) {
+            showSlide(index);
+        }
+
+        function updateButtons() {
+            document.getElementById('prevBtn').disabled = currentSlide === 0;
+            document.getElementById('nextBtn').disabled = currentSlide === totalSlides - 1;
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Part 4 - 系統架構與模型選擇</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft JhengHei', 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            color: #333;
+        }
+
+        .nav-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            z-index: 10000;
+        }
+
+        .nav-title { font-size: 22px; font-weight: 700; color: #fff; }
+        .nav-buttons { display: flex; gap: 12px; }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.4); }
+
+        /* 確保連結無底線 */
+        a.nav-btn, a.nav-btn:hover, a.nav-btn:visited, a.nav-btn:active {
+            text-decoration: none !important;
+        }
+
+        .nav-arrow {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.25);
+            color: white;
+            width: 60px; height: 60px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.4);
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 9000;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .nav-arrow:hover { background: rgba(255,255,255,0.5); transform: translateY(-50%) scale(1.1); }
+        .prev-arrow { left: 30px; }
+        .next-arrow { right: 30px; }
+        .nav-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .slide-container { width: 100%; height: 100vh; padding-top: 60px; position: relative; }
+        .slide {
+            position: absolute;
+            top: 60px; left: 0;
+            width: 100%;
+            height: calc(100vh - 60px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .slide.active { display: flex; opacity: 1; z-index: 20; }
+
+        .content-card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            padding: 50px;
+            max-width: 1400px;
+            width: 95%;
+            max-height: 88vh;
+            overflow-y: auto;
+        }
+
+        h1 { color: #667eea; font-size: 52px; margin-bottom: 24px; text-align: center; }
+        h2 { color: #764ba2; font-size: 36px; margin-bottom: 30px; border-bottom: 3px solid #667eea; padding-bottom: 12px; }
+        h3 { color: #667eea; font-size: 24px; margin: 25px 0 15px 0; }
+        p, li { font-size: 18px; line-height: 1.8; color: #444; margin-bottom: 12px; }
+        ul, ol { margin-left: 30px; }
+        code { background: #f0f2f5; padding: 3px 8px; border-radius: 6px; font-family: 'Consolas', monospace; color: #d63384; font-weight: 600; }
+        pre { background: #282c34; color: #abb2bf; padding: 20px; border-radius: 12px; overflow-x: auto; margin: 20px 0; font-size: 14px; line-height: 1.5; font-family: 'Consolas', monospace; }
+
+        .box { padding: 20px; border-radius: 12px; margin: 20px 0; border-left: 6px solid; font-size: 18px; }
+        .info { background: #e3f2fd; border-color: #2196f3; color: #0d47a1; }
+        .warning { background: #fff3cd; border-color: #ffc107; color: #856404; }
+        .success { background: #d4edda; border-color: #28a745; color: #155724; }
+        .highlight { background: linear-gradient(120deg, #667eea 0%, #764ba2 100%); padding: 2px 8px; border-radius: 4px; font-weight: bold; color: white; }
+
+        .concept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 25px; }
+        .concept-card { background: #f8f9fa; padding: 20px; border-radius: 15px; border: 1px solid #e9ecef; transition: transform 0.3s; }
+        .concept-card:hover { transform: translateY(-5px); border-color: #667eea; }
+
+        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px; }
+        .three-column { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; }
+        @media (max-width: 900px) { .two-column, .three-column { grid-template-columns: 1fr; } }
+
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 16px; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+        th { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        tr:hover { background: #f5f5f5; }
+
+        .architecture-box {
+            background: #1e1e1e;
+            color: #e0e0e0;
+            padding: 25px;
+            border-radius: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+            margin: 20px 0;
+        }
+        .architecture-box .layer {
+            border: 2px solid #4fc3f7;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .architecture-box .arrow {
+            text-align: center;
+            color: #4fc3f7;
+            font-size: 20px;
+        }
+
+        .model-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 15px;
+            padding: 20px;
+            border-left: 5px solid #667eea;
+        }
+        .model-card h4 { color: #667eea; font-size: 20px; margin-bottom: 10px; }
+        .model-card .specs { display: flex; gap: 15px; flex-wrap: wrap; margin: 10px 0; }
+        .model-card .spec { background: #667eea; color: white; padding: 3px 10px; border-radius: 15px; font-size: 12px; }
+
+        .star { color: #ffc107; }
+        .indicators { position: fixed; bottom: 25px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 4000; padding: 10px 25px; background: rgba(0,0,0,0.3); border-radius: 30px; }
+        .dot { width: 12px; height: 12px; background: rgba(255,255,255,0.4); border-radius: 50%; cursor: pointer; transition: all 0.3s; }
+        .dot.active { background: #4fc3f7; transform: scale(1.3); }
+
+        .vs-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+        }
+        .vs-item {
+            flex: 1;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        .vs-item.local { background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%); border: 2px solid #667eea; }
+        .vs-item.cloud { background: linear-gradient(135deg, #28a74520 0%, #20c99720 100%); border: 2px solid #28a745; }
+        .vs-divider { font-size: 30px; font-weight: bold; color: #999; }
+    </style>
+</head>
+<body>
+
+    <div class="nav-bar">
+        <div class="nav-title">Part 4 - 系統架構與模型選擇</div>
+        <div class="nav-buttons">
+            <button class="nav-btn" onclick="goToSlide(0)">🏠 首頁</button>
+            <button class="nav-btn" onclick="toggleFullscreen()">🖥️ 全螢幕</button>
+            <a href="https://www.facebook.com/?locale=zh_TW" target="_blank" class="nav-btn">📘 FB</a>
+            <a href="https://www.youtube.com/@Liang-yt02" target="_blank" class="nav-btn">🎥 YT</a>
+        </div>
+    </div>
+
+    <div class="slide-container">
+
+        <!-- Slide 1: 封面 -->
+        <div class="slide active">
+            <div class="content-card" style="text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <h4 style="color: #667eea; letter-spacing: 2px; margin-bottom: 10px;">CH10 本地 AI 模型與對話平台</h4>
+                <h1>Part 4: 系統架構與模型選擇</h1>
+                <h2 style="border: none; font-weight: normal; font-size: 26px; color: #666; max-width: 800px;">
+                    深入理解本地 AI 系統，選擇最適合的模型
+                </h2>
+                <div style="margin-top: 40px; display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+                    <span class="highlight">三層架構</span>
+                    <span class="highlight">API 端點</span>
+                    <span class="highlight">模型比較</span>
+                    <span class="highlight">選擇策略</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: 系統架構全貌 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>系統架構全貌</h2>
+                <p>本地 AI 對話平台由三個層次組成：</p>
+
+                <div class="architecture-box">
+                    <div class="layer" style="background: rgba(79, 195, 247, 0.2);">
+                        <strong style="color: #4fc3f7;">使用者介面層 (Frontend)</strong><br>
+                        HTML/CSS/JavaScript 網頁 | Ollama GUI | CLI 命令列
+                    </div>
+                    <div class="arrow">↓ HTTP/REST API (localhost:11434) ↓</div>
+                    <div class="layer" style="background: rgba(129, 199, 132, 0.2);">
+                        <strong style="color: #81c784;">API 服務層 (Ollama)</strong><br>
+                        接收請求 | 載入模型 | 執行推理 | 回傳結果
+                    </div>
+                    <div class="arrow">↓ 模型載入與推理 ↓</div>
+                    <div class="layer" style="background: rgba(255, 183, 77, 0.2);">
+                        <strong style="color: #ffb74d;">模型層 (AI Models)</strong><br>
+                        Llama 3 | Mistral | Gemma | Phi | 更多開源模型
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: 各層詳解 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>三層架構詳解</h2>
+                <div class="three-column">
+                    <div class="concept-card">
+                        <h3>使用者介面層</h3>
+                        <p><strong>功能：</strong>提供互動介面</p>
+                        <ul style="font-size: 16px;">
+                            <li><strong>Ollama GUI</strong>：官方圖形介面</li>
+                            <li><strong>自建網頁</strong>：可客製化</li>
+                            <li><strong>CLI</strong>：命令列操作</li>
+                            <li><strong>第三方應用</strong>：Open WebUI 等</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card">
+                        <h3>API 服務層</h3>
+                        <p><strong>Ollama 核心職責：</strong></p>
+                        <ul style="font-size: 16px;">
+                            <li>管理模型下載與更新</li>
+                            <li>啟動 HTTP 伺服器</li>
+                            <li>處理 API 請求</li>
+                            <li>執行 AI 推理運算</li>
+                            <li>優化運算效能</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card">
+                        <h3>模型層</h3>
+                        <p><strong>模型運作方式：</strong></p>
+                        <ul style="font-size: 16px;">
+                            <li>GGUF 格式儲存</li>
+                            <li>載入到 RAM 執行</li>
+                            <li>支援 GPU 加速</li>
+                            <li>支援量化技術</li>
+                            <li>可同時載入多模型</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: API 端點 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>Ollama API 端點</h2>
+                <table>
+                    <tr>
+                        <th>端點</th>
+                        <th>方法</th>
+                        <th>功能</th>
+                        <th>使用情境</th>
+                    </tr>
+                    <tr>
+                        <td><code>/api/generate</code></td>
+                        <td>POST</td>
+                        <td>生成回應</td>
+                        <td>發送問題，取得 AI 回答</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/chat</code></td>
+                        <td>POST</td>
+                        <td>多輪對話</td>
+                        <td>保留對話歷史的連續對話</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/tags</code></td>
+                        <td>GET</td>
+                        <td>列出模型</td>
+                        <td>查詢已下載的模型清單</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/pull</code></td>
+                        <td>POST</td>
+                        <td>下載模型</td>
+                        <td>透過 API 下載新模型</td>
+                    </tr>
+                    <tr>
+                        <td><code>/api/embeddings</code></td>
+                        <td>POST</td>
+                        <td>產生向量</td>
+                        <td>將文字轉換為向量（RAG 應用）</td>
+                    </tr>
+                </table>
+                <div class="box info">
+                    <strong>基礎 URL：</strong><code>http://localhost:11434</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: 本地 vs 雲端 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>本地 AI vs 雲端 AI</h2>
+                <div class="vs-box">
+                    <div class="vs-item local">
+                        <h3 style="color: #667eea;">本地 AI (Ollama)</h3>
+                        <ul style="text-align: left; font-size: 16px;">
+                            <li>完全免費</li>
+                            <li>100% 隱私保護</li>
+                            <li>離線可用</li>
+                            <li>無使用限制</li>
+                            <li>可客製化</li>
+                        </ul>
+                    </div>
+                    <div class="vs-divider">VS</div>
+                    <div class="vs-item cloud">
+                        <h3 style="color: #28a745;">雲端 AI (OpenAI)</h3>
+                        <ul style="text-align: left; font-size: 16px;">
+                            <li>按量計費</li>
+                            <li>資料傳雲端</li>
+                            <li>需要網路</li>
+                            <li>有 API 配額</li>
+                            <li>品質最頂尖</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: 詳細比較表 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>全面比較表</h2>
+                <table style="font-size: 15px;">
+                    <tr>
+                        <th>比較項目</th>
+                        <th>本地 AI</th>
+                        <th>雲端 AI</th>
+                    </tr>
+                    <tr>
+                        <td><strong>費用</strong></td>
+                        <td>完全免費（僅硬體成本）</td>
+                        <td>$0.5-$20/百萬 tokens</td>
+                    </tr>
+                    <tr>
+                        <td><strong>隱私</strong></td>
+                        <td>100% 本機，絕不外洩</td>
+                        <td>資料傳送到雲端</td>
+                    </tr>
+                    <tr>
+                        <td><strong>回應速度</strong></td>
+                        <td>1-10 秒（取決於硬體）</td>
+                        <td>1-3 秒</td>
+                    </tr>
+                    <tr>
+                        <td><strong>模型品質</strong></td>
+                        <td>中等至良好</td>
+                        <td>最頂尖</td>
+                    </tr>
+                    <tr>
+                        <td><strong>硬體需求</strong></td>
+                        <td>8-64GB RAM</td>
+                        <td>僅需能上網</td>
+                    </tr>
+                    <tr>
+                        <td><strong>長文本</strong></td>
+                        <td>2K-8K tokens</td>
+                        <td>128K-1M tokens</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Slide 7: 使用情境建議 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>選擇建議：什麼情況用哪個？</h2>
+                <div class="two-column">
+                    <div>
+                        <h3 style="color: #667eea;">選擇本地 AI</h3>
+                        <div class="concept-card">
+                            <ul style="font-size: 16px;">
+                                <li><strong>學生練習</strong>：免費無限使用</li>
+                                <li><strong>企業內部</strong>：保護機密資料</li>
+                                <li><strong>高頻使用</strong>：每天 >100 次</li>
+                                <li><strong>離線環境</strong>：無網路可用</li>
+                                <li><strong>創意寫作</strong>：無限次生成</li>
+                                <li><strong>程式開發</strong>：Code Copilot 替代</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="color: #28a745;">選擇雲端 AI</h3>
+                        <div class="concept-card">
+                            <ul style="font-size: 16px;">
+                                <li><strong>頂尖品質</strong>：GPT-4、Claude</li>
+                                <li><strong>偶爾使用</strong>：每天 <10 次</li>
+                                <li><strong>多語言</strong>：翻譯需求</li>
+                                <li><strong>長文本</strong>：處理大量文字</li>
+                                <li><strong>低硬體</strong>：設備配置不足</li>
+                                <li><strong>最新功能</strong>：視覺、語音等</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: 模型比較 - Llama 3 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>主流模型介紹：Llama 3</h2>
+                <div class="model-card">
+                    <h4>Llama 3 (Meta)</h4>
+                    <div class="specs">
+                        <span class="spec">8B / 70B 參數</span>
+                        <span class="spec">4.7GB / 40GB</span>
+                        <span class="spec">Meta 官方</span>
+                    </div>
+                </div>
+
+                <div class="two-column" style="margin-top: 20px;">
+                    <div>
+                        <h3>優勢</h3>
+                        <ul>
+                            <li>Meta 官方支援，更新頻繁</li>
+                            <li>8B 版本輕量執行快速</li>
+                            <li>程式碼生成能力強</li>
+                            <li>英文對話品質頂尖</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>效能測試</h3>
+                        <pre style="font-size: 14px;">問題：Write a Python sort function
+回應時間：1.8 秒（8B）
+程式碼正確性：<span class="star">★★★★★</span>
+中文支援：<span class="star">★★★☆☆</span></pre>
+                    </div>
+                </div>
+
+                <div class="box warning">
+                    <strong>注意：</strong>繁體中文支援較弱，有時會混用簡體字。主要使用英文場景推薦。
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: 模型比較 - Mistral -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>主流模型介紹：Mistral</h2>
+                <div class="model-card">
+                    <h4>Mistral (Mistral AI)</h4>
+                    <div class="specs">
+                        <span class="spec">7B 參數</span>
+                        <span class="spec">4.1GB</span>
+                        <span class="spec">速度最快</span>
+                    </div>
+                </div>
+
+                <div class="two-column" style="margin-top: 20px;">
+                    <div>
+                        <h3>優勢</h3>
+                        <ul>
+                            <li>檔案小，下載快</li>
+                            <li>執行速度極快</li>
+                            <li>效能超越同級模型</li>
+                            <li>適合硬體較弱的電腦</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>效能測試</h3>
+                        <pre style="font-size: 14px;">問題：解釋什麼是量子電腦
+回應時間：1.2 秒
+回答品質：<span class="star">★★★★☆</span>
+速度表現：<span class="star">★★★★★</span></pre>
+                    </div>
+                </div>
+
+                <div class="box success">
+                    <strong>推薦場景：</strong>需要快速回應、硬體配置較低、或作為測試用的首選模型。
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 10: 模型比較 - Gemma & Phi -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>輕量級模型：Gemma & Phi</h2>
+                <div class="two-column">
+                    <div>
+                        <div class="model-card">
+                            <h4>Gemma (Google)</h4>
+                            <div class="specs">
+                                <span class="spec">2B / 7B</span>
+                                <span class="spec">1.6GB / 4.9GB</span>
+                            </div>
+                        </div>
+                        <ul style="margin-top: 15px;">
+                            <li>Google 開發，品質有保證</li>
+                            <li>2B 版本超輕量</li>
+                            <li>適合入門學習</li>
+                            <li>指令遵循能力佳</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <div class="model-card">
+                            <h4>Phi (Microsoft)</h4>
+                            <div class="specs">
+                                <span class="spec">2.7B</span>
+                                <span class="spec">1.6GB</span>
+                            </div>
+                        </div>
+                        <ul style="margin-top: 15px;">
+                            <li>微軟研究團隊開發</li>
+                            <li>極致輕量化設計</li>
+                            <li>低資源需求（4GB RAM）</li>
+                            <li>適合嵌入式應用</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="box info" style="margin-top: 20px;">
+                    <strong>適用場景：</strong>記憶體不足、老舊電腦、或需要快速回應但對品質要求不高的場景。
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 11: 模型選擇決策樹 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>模型選擇決策指南</h2>
+                <div class="concept-grid" style="grid-template-columns: repeat(2, 1fr);">
+                    <div class="concept-card">
+                        <h3>你的 RAM 有多少？</h3>
+                        <ul style="font-size: 16px;">
+                            <li><strong>4-8GB</strong> → Phi、Gemma:2b</li>
+                            <li><strong>8-16GB</strong> → Llama3:8b、Mistral</li>
+                            <li><strong>16-32GB</strong> → Llama3:8b + 進階功能</li>
+                            <li><strong>32GB+</strong> → 可考慮 70B 模型</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card">
+                        <h3>主要用途是什麼？</h3>
+                        <ul style="font-size: 16px;">
+                            <li><strong>程式碼</strong> → Llama 3</li>
+                            <li><strong>中文對話</strong> → Llama 3、Mistral</li>
+                            <li><strong>快速回應</strong> → Mistral</li>
+                            <li><strong>學習測試</strong> → Gemma、Phi</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card">
+                        <h3>硬碟空間？</h3>
+                        <ul style="font-size: 16px;">
+                            <li><strong><5GB</strong> → Phi (1.6GB)</li>
+                            <li><strong>5-10GB</strong> → Mistral (4.1GB)</li>
+                            <li><strong>10-20GB</strong> → Llama3 (4.7GB)</li>
+                            <li><strong>50GB+</strong> → 多模型並存</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card">
+                        <h3>有獨立顯卡嗎？</h3>
+                        <ul style="font-size: 16px;">
+                            <li><strong>NVIDIA GPU</strong> → 大幅加速</li>
+                            <li><strong>AMD GPU</strong> → 部分支援</li>
+                            <li><strong>Apple Silicon</strong> → 優秀支援</li>
+                            <li><strong>僅 CPU</strong> → 選擇小模型</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 12: 效能優化建議 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>效能優化建議</h2>
+                <div class="three-column">
+                    <div class="concept-card">
+                        <h3>硬體升級</h3>
+                        <ul style="font-size: 16px;">
+                            <li>增加 RAM 是最有效的</li>
+                            <li>SSD 比 HDD 快很多</li>
+                            <li>獨顯可加速 5-10 倍</li>
+                            <li>Apple M 系列效能佳</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card">
+                        <h3>軟體調整</h3>
+                        <ul style="font-size: 16px;">
+                            <li>關閉不需要的程式</li>
+                            <li>使用量化版模型</li>
+                            <li>調低 Context Length</li>
+                            <li>啟用 GPU 加速</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card">
+                        <h3>使用技巧</h3>
+                        <ul style="font-size: 16px;">
+                            <li>首次載入較慢屬正常</li>
+                            <li>保持 Ollama 背景運行</li>
+                            <li>問題越簡短越快</li>
+                            <li>避免同時跑多任務</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="box success" style="margin-top: 20px;">
+                    <strong>最佳實踐：</strong>16GB RAM + SSD + 獨顯 = 流暢的本地 AI 體驗
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 13: 總結 -->
+        <div class="slide">
+            <div class="content-card">
+                <h2>Part 4 總結</h2>
+                <div class="concept-grid">
+                    <div class="concept-card">
+                        <h3>系統架構</h3>
+                        <ul>
+                            <li>三層架構清晰分工</li>
+                            <li>Ollama 作為核心服務</li>
+                            <li>REST API 標準介面</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card">
+                        <h3>模型選擇</h3>
+                        <ul>
+                            <li>Llama 3：全能首選</li>
+                            <li>Mistral：速度優先</li>
+                            <li>Gemma/Phi：輕量入門</li>
+                        </ul>
+                    </div>
+                    <div class="concept-card">
+                        <h3>下一步</h3>
+                        <p>在 Part 5，我們將透過<strong>5 個實戰案例</strong>，展示如何將本地 AI 應用在真實場景中！</p>
+                    </div>
+                </div>
+
+                <div class="box info" style="margin-top: 25px; text-align: center;">
+                    <strong>記住：</strong>根據你的硬體配置、使用場景、語言需求，選擇最適合的模型。<br>
+                    沒有最好的模型，只有最適合的模型！
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <button class="nav-arrow prev-arrow" id="prevBtn" onclick="changeSlide(-1)">&#10094;</button>
+    <button class="nav-arrow next-arrow" id="nextBtn" onclick="changeSlide(1)">&#10095;</button>
+    <div class="indicators" id="indicatorContainer"></div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+
+        function init() {
+            createIndicators();
+            showSlide(0);
+            updateButtons();
+            document.addEventListener('keydown', handleKeydown);
+        }
+
+        function handleKeydown(e) {
+            if (e.key === 'ArrowLeft') changeSlide(-1);
+            if (e.key === 'ArrowRight') changeSlide(1);
+        }
+
+        function createIndicators() {
+            const container = document.getElementById('indicatorContainer');
+            slides.forEach((_, index) => {
+                const dot = document.createElement('div');
+                dot.className = 'dot';
+                dot.onclick = () => goToSlide(index);
+                container.appendChild(dot);
+            });
+        }
+
+        function showSlide(index) {
+            if (index < 0) index = 0;
+            if (index >= totalSlides) index = totalSlides - 1;
+            slides.forEach(slide => slide.classList.remove('active'));
+            slides[index].classList.add('active');
+            currentSlide = index;
+            document.querySelectorAll('.dot').forEach((dot, idx) => dot.classList.toggle('active', idx === index));
+            updateButtons();
+        }
+
+        function changeSlide(direction) { showSlide(currentSlide + direction); }
+        function goToSlide(index) { showSlide(index); }
+        function updateButtons() {
+            document.getElementById('prevBtn').disabled = currentSlide === 0;
+            document.getElementById('nextBtn').disabled = currentSlide === totalSlides - 1;
+        }
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else if (document.exitFullscreen) document.exitFullscreen();
+        }
+        init();
+    </script>
+</body>
+</html>

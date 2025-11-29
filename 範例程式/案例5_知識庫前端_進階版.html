@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的第二大腦 - 進階版（需搭配 Python 後端）</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Microsoft JhengHei", sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #eee;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #aaa;
+            margin-bottom: 15px;
+        }
+        .server-status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .server-status.connected {
+            background: rgba(76, 175, 80, 0.3);
+            color: #81c784;
+        }
+        .server-status.disconnected {
+            background: rgba(244, 67, 54, 0.3);
+            color: #e57373;
+        }
+        .section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        .section h2 {
+            margin-bottom: 15px;
+            color: #4fc3f7;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+        }
+        textarea { height: 150px; resize: vertical; }
+        button {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #4fc3f7 0%, #0097a7 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #666; cursor: not-allowed; }
+        button.danger {
+            background: linear-gradient(135deg, #e53935 0%, #c62828 100%);
+        }
+        #answer-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            line-height: 1.8;
+        }
+        #answer-result h3 { color: #4fc3f7; margin-bottom: 10px; }
+        .sources { color: #aaa; font-size: 0.9em; margin-top: 15px; }
+        .sources span { background: #333; padding: 3px 8px; border-radius: 4px; margin-right: 5px; }
+        .note-list { margin-top: 15px; }
+        .note-item {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        .note-item strong { color: #4fc3f7; display: block; margin-bottom: 5px; }
+        .note-item .delete-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #c62828;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .loading { color: #4fc3f7; font-style: italic; }
+        .status { padding: 10px; border-radius: 6px; margin-bottom: 15px; text-align: center; }
+        .status.success { background: rgba(76, 175, 80, 0.3); }
+        .status.error { background: rgba(244, 67, 54, 0.3); }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            flex: 1;
+            background: rgba(79, 195, 247, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-card .number { font-size: 2em; font-weight: bold; color: #4fc3f7; }
+        .stat-card .label { color: #aaa; font-size: 0.9em; }
+
+        .info-box {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #ffd54f;
+        }
+        .info-box code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>我的第二大腦（進階版）</h1>
+        <p class="subtitle">使用向量資料庫的 RAG 知識庫系統</p>
+
+        <div id="server-status" class="server-status disconnected">
+            正在檢查伺服器連線...
+        </div>
+
+        <div class="info-box">
+            <strong>使用說明：</strong><br>
+            1. 安裝套件：<code>pip install chromadb flask flask-cors requests</code><br>
+            2. 啟動 Ollama：<code>ollama serve</code><br>
+            3. 啟動後端：<code>python 案例5_知識庫伺服器.py</code><br>
+            4. 開啟此網頁
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="number" id="note-count">-</div>
+                <div class="label">筆記數量</div>
+            </div>
+        </div>
+
+        <!-- 問答區 -->
+        <div class="section">
+            <h2>詢問知識庫</h2>
+            <input type="text" id="question" placeholder="問任何問題，AI 會從你的筆記中找答案...">
+            <button onclick="askQuestion()">搜尋答案</button>
+            <div id="answer-result"></div>
+        </div>
+
+        <!-- 新增筆記 -->
+        <div class="section">
+            <h2>新增筆記</h2>
+            <input type="text" id="note-title" placeholder="標題（例如：Python 學習筆記）">
+            <textarea id="note-content" placeholder="筆記內容..."></textarea>
+            <input type="text" id="note-tags" placeholder="標籤（用逗號分隔，例如：程式設計, Python）">
+            <button onclick="addNote()">儲存筆記</button>
+            <div id="add-status"></div>
+        </div>
+
+        <!-- 筆記列表 -->
+        <div class="section">
+            <h2>已儲存的筆記</h2>
+            <button onclick="loadNotes()">重新載入</button>
+            <button class="danger" onclick="clearAllNotes()">清除所有筆記</button>
+            <div id="note-list" class="note-list">載入中...</div>
+        </div>
+    </div>
+
+    <script>
+    const API_URL = 'http://localhost:5000';
+
+    // 檢查伺服器狀態
+    async function checkServerStatus() {
+        const statusDiv = document.getElementById('server-status');
+        try {
+            const response = await fetch(`${API_URL}/health`);
+            const data = await response.json();
+            statusDiv.className = 'server-status connected';
+            statusDiv.innerHTML = `✅ 伺服器已連線 | 筆記數量：${data.notes_count}`;
+            document.getElementById('note-count').textContent = data.notes_count;
+            return true;
+        } catch (err) {
+            statusDiv.className = 'server-status disconnected';
+            statusDiv.innerHTML = '❌ 無法連線到伺服器。請確認 Python 後端已啟動。';
+            document.getElementById('note-count').textContent = '-';
+            return false;
+        }
+    }
+
+    // 詢問知識庫
+    async function askQuestion() {
+        const question = document.getElementById('question').value;
+        const resultDiv = document.getElementById('answer-result');
+
+        if (!question.trim()) {
+            resultDiv.innerHTML = '<p>請輸入問題</p>';
+            return;
+        }
+
+        resultDiv.innerHTML = '<p class="loading">AI 正在思考中...</p>';
+
+        try {
+            const response = await fetch(`${API_URL}/ask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question })
+            });
+
+            const data = await response.json();
+
+            let sourcesHtml = '';
+            if (data.sources && data.sources.length > 0) {
+                sourcesHtml = `<div class="sources">來源筆記：${data.sources.map(s => `<span>${s}</span>`).join('')}</div>`;
+            }
+
+            resultDiv.innerHTML = `
+                <h3>答案</h3>
+                <p>${data.answer.replace(/\n/g, '<br>')}</p>
+                ${sourcesHtml}
+            `;
+        } catch (err) {
+            resultDiv.innerHTML = `<p>錯誤：${err.message}<br>請確認後端伺服器已啟動</p>`;
+        }
+    }
+
+    // 新增筆記
+    async function addNote() {
+        const title = document.getElementById('note-title').value;
+        const content = document.getElementById('note-content').value;
+        const tags = document.getElementById('note-tags').value;
+        const statusDiv = document.getElementById('add-status');
+
+        if (!content.trim()) {
+            statusDiv.innerHTML = '<div class="status error">請輸入筆記內容</div>';
+            return;
+        }
+
+        statusDiv.innerHTML = '<div class="status">儲存中...</div>';
+
+        try {
+            const response = await fetch(`${API_URL}/add_note`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: title || '未命名', content, tags })
+            });
+
+            const data = await response.json();
+            statusDiv.innerHTML = `<div class="status success">✅ ${data.message}</div>`;
+
+            // 清空輸入欄位
+            document.getElementById('note-title').value = '';
+            document.getElementById('note-content').value = '';
+            document.getElementById('note-tags').value = '';
+
+            // 重新載入
+            loadNotes();
+            checkServerStatus();
+        } catch (err) {
+            statusDiv.innerHTML = `<div class="status error">❌ 錯誤：${err.message}</div>`;
+        }
+    }
+
+    // 刪除筆記
+    async function deleteNote(noteId) {
+        if (!confirm('確定要刪除這則筆記嗎？')) return;
+
+        try {
+            await fetch(`${API_URL}/delete_note/${noteId}`, { method: 'DELETE' });
+            loadNotes();
+            checkServerStatus();
+        } catch (err) {
+            alert('刪除失敗：' + err.message);
+        }
+    }
+
+    // 清除所有筆記
+    async function clearAllNotes() {
+        if (!confirm('確定要清除所有筆記嗎？此操作無法復原！')) return;
+
+        try {
+            await fetch(`${API_URL}/clear_all`, { method: 'DELETE' });
+            loadNotes();
+            checkServerStatus();
+        } catch (err) {
+            alert('清除失敗：' + err.message);
+        }
+    }
+
+    // 載入筆記列表
+    async function loadNotes() {
+        const listDiv = document.getElementById('note-list');
+
+        try {
+            const response = await fetch(`${API_URL}/notes`);
+            const data = await response.json();
+
+            if (data.notes.length === 0) {
+                listDiv.innerHTML = '<p style="color:#aaa; text-align:center; padding:20px;">還沒有筆記，請先新增一些！</p>';
+                return;
+            }
+
+            listDiv.innerHTML = data.notes.map(note => `
+                <div class="note-item">
+                    <button class="delete-btn" onclick="deleteNote('${note.id}')">刪除</button>
+                    <strong>${note.title}</strong>
+                    <p>${note.preview}</p>
+                </div>
+            `).join('');
+        } catch (err) {
+            listDiv.innerHTML = `<p style="color:#e57373;">無法載入：${err.message}</p>`;
+        }
+    }
+
+    // 頁面載入時
+    checkServerStatus().then(connected => {
+        if (connected) {
+            loadNotes();
+        }
+    });
+
+    // 每 10 秒檢查一次伺服器狀態
+    setInterval(checkServerStatus, 10000);
+
+    // Enter 鍵送出問題
+    document.getElementById('question').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') askQuestion();
+    });
+    </script>
+</body>
+</html>
