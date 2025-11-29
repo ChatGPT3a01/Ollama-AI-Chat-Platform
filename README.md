@@ -2,9 +2,11 @@
 
 本專案為「自己架設 AI - 零基礎到大師」課程教學資源，涵蓋如何使用 Ollama 在本機部署 AI 模型，並自建網頁對話平台。
 
-## 教學簡報
+## 教學簡報入口
 
-https://chatgpt3a01.github.io/Ollama-AI-Chat-Platform/%E7%B0%A1%E5%A0%B1/index.html
+本專案搭配課室使用教材，完整簡報請見：
+
+👉 **[Ollama 本地 AI 模型對話平台｜簡報入口](https://chatgpt3a01.github.io/Ollama-AI-Chat-Platform/簡報/index.html)**
 
 ## 下載專案
 
