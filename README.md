@@ -6,7 +6,7 @@
 
 ### 方法一：使用 Git Clone
 ```bash
-git clone https://github.com/YOUR_USERNAME/Ollama-AI-Chat-Platform.git
+git clone https://github.com/ChatGPT3a01/Ollama-AI-Chat-Platform.git
 cd Ollama-AI-Chat-Platform
 ```
 
