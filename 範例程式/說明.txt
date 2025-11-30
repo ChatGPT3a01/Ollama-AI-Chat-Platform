@@ -5,7 +5,7 @@ CH10 範例程式說明
 本資料夾包含 CH10 教學中的所有範例程式，
 對應 MD 檔案中的各個章節與案例。
 
-建立的檔案清單（共 10 個）：
+建立的檔案清單（共 9 個）：
 
   | 檔案名稱               | 對應 MD 章節           |
   |--------------------|--------------------|
@@ -15,19 +15,20 @@ CH10 範例程式說明
   | 案例2_教師監控面板.html    | 案例 2 的教師查看學生統計     |
   | 案例3_程式碼審查工具.html   | 案例 3：軟體公司的程式碼審查機器人 |
   | 案例4_寫作工作台.html     | 案例 4：出版社的內容創作加速器   |
-  | 案例5_知識庫前端.html     | 案例 5：個人知識庫（純前端版本）  |
   | 案例5_知識庫伺服器.py      | 案例 5：Python 後端伺服器  |
-  | 案例5_知識庫前端_進階版.html | 案例 5：搭配後端使用的進階版    |
+  | 案例5_知識庫前端_進階版.html | 案例 5：知識庫前端網頁介面     |
   | 說明.txt             | 使用說明文件             |
 
   使用方式：
 
   1. 確認 Ollama 已安裝並啟動
-  2. 下載模型：ollama pull llama3
+  2. 下載對話模型：ollama pull qwen:latest（或其他對話模型）
   3. 大部分 HTML 檔案可直接用瀏覽器開啟使用
-  4. 案例 5 進階版需要先執行 Python 後端：
-  pip install chromadb flask flask-cors requests
-  python 案例5_知識庫伺服器.py
+  4. 案例 5 知識庫需要額外步驟：
+     a. 下載 Embedding 模型：ollama pull nomic-embed-text
+     b. 安裝 Python 套件：pip install chromadb flask flask-cors requests
+     c. 啟動後端伺服器：python 案例5_知識庫伺服器.py
+     d. 用瀏覽器開啟：案例5_知識庫前端_進階版.html
 
 ========================================
 使用前準備
@@ -38,8 +39,8 @@ CH10 範例程式說明
 
 2. 下載 AI 模型
    - 開啟終端機/命令提示字元
-   - 執行：ollama pull llama3
-   - 或：ollama pull mistral
+   - 對話模型：ollama pull qwen:latest（或 llama3、mistral 等）
+   - Embedding 模型（案例 5 必需）：ollama pull nomic-embed-text
 
 3. 啟動 Ollama
    - 確認 Ollama 在背景執行
@@ -84,20 +85,23 @@ CH10 範例程式說明
   - 使用：直接用瀏覽器開啟
 
 【案例 5：個人知識庫】
-案例5_知識庫前端.html
-  - 對應：案例 5：個人知識庫與第二大腦
-  - 功能：純前端版本，使用 localStorage 儲存
-  - 使用：直接用瀏覽器開啟（無需後端）
-
 案例5_知識庫伺服器.py
+  - 對應：案例 5：個人知識庫與第二大腦
   - 功能：Python 後端，使用 ChromaDB 向量資料庫
   - 使用：
-    1. pip install chromadb flask flask-cors requests
-    2. python 案例5_知識庫伺服器.py
+    1. 下載 Embedding 模型：ollama pull nomic-embed-text
+    2. 安裝套件：pip install chromadb flask flask-cors requests
+    3. 啟動伺服器：python 案例5_知識庫伺服器.py
 
 案例5_知識庫前端_進階版.html
-  - 功能：搭配 Python 後端使用的進階版本
+  - 功能：知識庫前端網頁介面
   - 使用：需先啟動 案例5_知識庫伺服器.py
+
+  *** 重要提醒 ***
+  案例 5 必須下載 Embedding 模型（nomic-embed-text），
+  一般對話模型（如 llama3、qwen）不支援向量化功能。
+  如果遇到「Embedding 錯誤」請確認已執行：
+  ollama pull nomic-embed-text
 
 ========================================
 常見問題
@@ -107,9 +111,18 @@ Q: 網頁無法連接 AI？
 A: 請確認 Ollama 已啟動，並且已下載模型
 
 Q: 模型回應很慢？
-A: 首次載入需要時間，或可嘗試使用較小的模型如 mistral
+A: 首次載入需要時間，或可嘗試使用較小的模型如 qwen:latest
 
 Q: 中文顯示亂碼？
 A: 確保瀏覽器編碼設定為 UTF-8
+
+Q: 案例 5 出現「Embedding 錯誤」或「無法產生向量」？
+A: 請確認已下載 Embedding 模型：
+   ollama pull nomic-embed-text
+   一般對話模型不支援 embedding 功能
+
+Q: 案例 5 出現「model not found」錯誤？
+A: 表示 embedding 模型尚未下載，請執行：
+   ollama pull nomic-embed-text
 
 ========================================

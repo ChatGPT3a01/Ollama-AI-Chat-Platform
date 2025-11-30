@@ -3,9 +3,12 @@
 #
 # 使用說明：
 # 1. 安裝必要套件：pip install chromadb flask flask-cors requests
-# 2. 確認 Ollama 已啟動：ollama serve
-# 3. 執行此程式：python 案例5_知識庫伺服器.py
-# 4. 用瀏覽器開啟：案例5_知識庫前端_進階版.html
+# 2. 下載 Embedding 模型：ollama pull nomic-embed-text
+# 3. 確認 Ollama 已啟動：ollama serve
+# 4. 執行此程式：python 案例5_知識庫伺服器.py
+# 5. 用瀏覽器開啟：案例5_知識庫前端_進階版.html
+#
+# 注意：必須下載 nomic-embed-text 模型，一般對話模型不支援 embedding 功能
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -33,13 +36,22 @@ except:
 
 
 def get_embedding(text):
-    """使用 Ollama 產生向量（Embedding）"""
+    """使用 Ollama 產生向量（Embedding）
+    注意：必須使用專門的 embedding 模型（如 nomic-embed-text）
+    一般對話模型（如 llama3、qwen）不支援此功能
+    """
     try:
         response = requests.post('http://localhost:11434/api/embeddings', json={
-            'model': 'llama3',
+            'model': 'nomic-embed-text',  # 專門的 embedding 模型
             'prompt': text
         })
-        return response.json()['embedding']
+        result = response.json()
+        if 'embedding' in result:
+            return result['embedding']
+        else:
+            print(f"Embedding 回應異常：{result}")
+            print("請確認已執行：ollama pull nomic-embed-text")
+            return None
     except Exception as e:
         print(f"Embedding 錯誤：{e}")
         return None
@@ -114,8 +126,10 @@ def ask_question():
 請用繁體中文回答："""
 
     try:
+        # 使用對話模型生成答案
+        # 請根據你下載的模型修改此處，例如：llama3、qwen、mistral 等
         response = requests.post('http://localhost:11434/api/generate', json={
-            'model': 'llama3',
+            'model': 'qwen:latest',  # 修改為你下載的對話模型
             'prompt': prompt,
             'stream': False
         })
@@ -184,6 +198,7 @@ if __name__ == '__main__':
     print("=" * 50)
     print("📍 API 網址：http://localhost:5000")
     print("💡 請確認 Ollama 已啟動（ollama serve）")
+    print("💡 請確認已下載 embedding 模型（ollama pull nomic-embed-text）")
     print("")
     print("可用的 API 端點：")
     print("  POST /add_note     - 新增筆記")

@@ -615,10 +615,10 @@
                         <h3>概念</h3>
                         <p>將你的筆記、文件、想法儲存起來，讓 AI 幫你記住並在需要時找出來。</p>
 
-                        <h3 style="margin-top: 20px;">兩種版本</h3>
+                        <h3 style="margin-top: 20px;">技術架構</h3>
                         <div class="feature-list">
-                            <div class="feature-item"><strong>純前端版</strong><br>使用 localStorage</div>
-                            <div class="feature-item"><strong>進階版</strong><br>搭配 Python + ChromaDB</div>
+                            <div class="feature-item"><strong>後端</strong><br>Python + Flask + ChromaDB</div>
+                            <div class="feature-item"><strong>向量化</strong><br>nomic-embed-text 模型</div>
                         </div>
 
                         <h3 style="margin-top: 15px;">核心功能</h3>
@@ -666,13 +666,16 @@
                 </div>
 
                 <div class="box info" style="margin-top: 30px;">
-                    <strong>進階版技術棧：</strong>
+                    <strong>技術棧：</strong>
                     <div class="tech-stack" style="margin-top: 10px;">
                         <span class="tech-tag">Python Flask</span>
                         <span class="tech-tag">ChromaDB</span>
-                        <span class="tech-tag">Ollama Embeddings</span>
+                        <span class="tech-tag">nomic-embed-text</span>
                         <span class="tech-tag">向量相似度</span>
                     </div>
+                </div>
+                <div class="box warning" style="margin-top: 15px;">
+                    <strong>重要提醒：</strong>必須下載專門的 Embedding 模型（<code>ollama pull nomic-embed-text</code>），一般對話模型不支援向量化功能。
                 </div>
             </div>
         </div>
