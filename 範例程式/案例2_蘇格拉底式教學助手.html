@@ -191,9 +191,9 @@
             </select>
             <label>模型：</label>
             <select id="model-select">
-                <option value="llama3">Llama 3 (8B)</option>
-                <option value="mistral">Mistral (7B)</option>
+                <option value="">載入中...</option>
             </select>
+            <span id="model-status" style="color: #2e7d32; font-size: 0.9em;"></span>
         </div>
 
         <div class="stats" id="stats">
@@ -234,8 +234,38 @@
         const subjectSelect = document.getElementById("subject-select");
         const studentNameInput = document.getElementById("student-name");
 
-        let currentModel = "llama3";
+        let currentModel = "";
         let questionCount = 0;
+
+        // 自動載入可用模型
+        async function loadModels() {
+            const modelStatus = document.getElementById('model-status');
+            try {
+                const res = await fetch('http://localhost:11434/api/tags');
+                const data = await res.json();
+                modelSelect.innerHTML = '';
+                if (data.models && data.models.length > 0) {
+                    data.models.forEach((model) => {
+                        const option = document.createElement('option');
+                        option.value = model.name;
+                        const sizeGB = (model.size / 1e9).toFixed(1);
+                        option.textContent = `${model.name} (${sizeGB} GB)`;
+                        modelSelect.appendChild(option);
+                    });
+                    currentModel = data.models[0].name;
+                    modelStatus.textContent = `✓ ${data.models.length} 個模型`;
+                } else {
+                    modelSelect.innerHTML = '<option value="">無可用模型</option>';
+                    modelStatus.textContent = '請先下載模型';
+                    modelStatus.style.color = 'red';
+                }
+            } catch (err) {
+                modelSelect.innerHTML = '<option value="">無法連接</option>';
+                modelStatus.textContent = '請確認 Ollama 已啟動';
+                modelStatus.style.color = 'red';
+            }
+        }
+        loadModels();
 
         modelSelect.addEventListener("change", (e) => {
             currentModel = e.target.value;

@@ -154,9 +154,9 @@
             <div class="model-select">
                 <label>模型：</label>
                 <select id="model-select">
-                    <option value="llama3">Llama 3 (8B)</option>
-                    <option value="mistral">Mistral (7B)</option>
+                    <option value="">載入中...</option>
                 </select>
+                <span id="model-status" style="margin-left: 10px;"></span>
             </div>
             <input type="text" id="question" placeholder="問任何問題，AI 會從你的筆記中找答案...">
             <button onclick="askQuestion()">搜尋答案</button>
@@ -186,6 +186,37 @@
     <script>
     const OLLAMA_API = 'http://localhost:11434/api/generate';
     let queryCount = parseInt(localStorage.getItem('queryCount') || '0');
+
+    // 自動載入可用模型
+    async function loadModels() {
+        const modelSelect = document.getElementById('model-select');
+        const modelStatus = document.getElementById('model-status');
+        try {
+            const res = await fetch('http://localhost:11434/api/tags');
+            const data = await res.json();
+            modelSelect.innerHTML = '';
+            if (data.models && data.models.length > 0) {
+                data.models.forEach((model) => {
+                    const option = document.createElement('option');
+                    option.value = model.name;
+                    const sizeGB = (model.size / 1e9).toFixed(1);
+                    option.textContent = `${model.name} (${sizeGB} GB)`;
+                    modelSelect.appendChild(option);
+                });
+                modelStatus.textContent = `✓ ${data.models.length} 個模型`;
+                modelStatus.style.color = '#4fc3f7';
+            } else {
+                modelSelect.innerHTML = '<option value="">無可用模型</option>';
+                modelStatus.textContent = '請先下載模型';
+                modelStatus.style.color = '#e57373';
+            }
+        } catch (err) {
+            modelSelect.innerHTML = '<option value="">無法連接</option>';
+            modelStatus.textContent = '請確認 Ollama 已啟動';
+            modelStatus.style.color = '#e57373';
+        }
+    }
+    loadModels();
 
     // 更新統計
     function updateStats() {
